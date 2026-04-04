@@ -469,10 +469,16 @@ async def get_passwords(user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 # CORS
+cors_origins = os.environ.get('CORS_ORIGINS', '*')
+if cors_origins != '*':
+    cors_origins = [origin.strip() for origin in cors_origins.split(',')]
+else:
+    cors_origins = ['*']
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[os.environ.get('FRONTEND_URL', 'http://localhost:3000'), 'https://workplace-os-ui.preview.emergentagent.com'],
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
