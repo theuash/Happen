@@ -6,12 +6,12 @@ import api from '../lib/axios';
 import { formatApiErrorDetail } from '../utils/formatError';
 
 const DEMO_ROLES = [
-  { role: 'employee', label: 'Employee', email: 'employee@happen.com', password: 'employee123' },
-  { role: 'team_lead', label: 'Team Lead', email: 'teamlead@happen.com', password: 'teamlead123' },
-  { role: 'manager', label: 'Manager', email: 'manager@happen.com', password: 'manager123' },
-  { role: 'hr', label: 'HR Director', email: 'hr@happen.com', password: 'hr123' },
-  { role: 'accounting', label: 'Accounting', email: 'accounting@happen.com', password: 'accounting123' },
-  { role: 'admin', label: 'Admin', email: 'admin@happen.com', password: 'admin123' },
+  { role: 'employee', label: 'Employee', email: 'diana@creativesolutions.com', password: 'DianaOM123!' },
+  { role: 'team_lead', label: 'Team Lead', email: 'sarah@creativesolutions.com', password: 'SarahLead123!' },
+  { role: 'manager', label: 'Manager', email: 'michael@creativesolutions.com', password: 'MichaelMgr456!' },
+  { role: 'hr', label: 'HR Director', email: 'lisa@creativesolutions.com', password: 'LisaHR789!' },
+  { role: 'accounting', label: 'Accounting', email: 'robert@creativesolutions.com', password: 'RobertAcct789!' },
+  { role: 'admin', label: 'Admin', email: 'admin@happen.com', password: 'Admin2026!' },
 ];
 
 function LoginPage() {
