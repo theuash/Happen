@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --orange: #F4631E;
+        --orange-light: #FF8C42;
+        --orange-pale: #FFF0E8;
+        --orange-dark: #C94E10;
+        --sidebar-bg: #1A1A2E;
+        --page-bg: #F7F4F1;
+        --surface: #FFFFFF;
+        --text-primary: #1A1A2E;
+        --text-secondary: #6B7280;
+        --border: #E5E7EB;
+        --success: #22C55E;
+        --warning: #F59E0B;
+        --danger: #EF4444;
+        
+        --background: 0 0% 100%;
+        --foreground: 0 0% 3.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 3.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 3.9%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 0 0% 96.1%;
+        --secondary-foreground: 0 0% 9%;
+        --muted: 0 0% 96.1%;
+        --muted-foreground: 0 0% 45.1%;
+        --accent: 0 0% 96.1%;
+        --accent-foreground: 0 0% 9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 98%;
+        --input: 0 0% 89.8%;
+        --ring: 0 0% 3.9%;
+        --radius: 0.5rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text-primary);
+    }
+    
+    code {
+        font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+    }
+}
+
+@layer utilities {
+    .card {
+        @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+    }
+    
+    .sidebar-item {
+        @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 transition-colors duration-150 cursor-pointer;
+    }
+    
+    .sidebar-item:hover {
+        @apply bg-gray-800 text-white;
+    }
+    
+    .sidebar-item.active {
+        @apply bg-orange-50 text-orange-600 border-l-4 border-orange-600;
+        border-left-width: 4px;
+        border-left-color: var(--orange);
+        background: var(--orange-pale);
+        color: var(--orange);
+    }
+    
+    .btn-primary {
+        @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+        background: var(--orange);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: var(--orange-light);
+        transform: translateY(-1px);
+    }
+    
+    .btn-primary:active {
+        transform: scale(0.95);
+    }
+    
+    .shimmer {
+        @apply animate-pulse bg-orange-100;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes bounce-in {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes confetti {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 200ms ease-in-out;
+}
+
+.animate-slideIn {
+    animation: slideIn 300ms ease-out;
+}
+
+.animate-bounce-in {
+    animation: bounce-in 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--orange-light);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--orange);
+}
