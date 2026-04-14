@@ -55,7 +55,7 @@ function LoginPage() {
         }}
       >
         <h1 className="text-5xl font-bold mb-4">Happen</h1>
-        <p className="text-2xl mb-8 opacity-90">The OS for Human-Centered Workplaces</p>
+        <p className="text-2xl mb-8 opacity-90">The Human-Centered Workplaces</p>
         <ul className="space-y-4 text-lg">
           <li className="flex items-start gap-3">
             <span className="text-2xl">✓</span>
