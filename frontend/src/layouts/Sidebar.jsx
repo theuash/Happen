@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   LogOut,
   Clock,
+  UserCheck,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../lib/axios';
 
@@ -23,6 +25,8 @@ const NAV = [
   { icon: Calendar, label: 'Calendar', path: '/calendar', roles: ['all'] },
   { icon: ClipboardList, label: 'My Leave Requests', path: '/leave', roles: ['employee', 'team_lead', 'accounting', 'admin'] },
   { icon: Clock, label: 'Leave Queue', path: '/leave/queue', roles: ['all'] },
+  { icon: UserCheck, label: 'Current Leaves', path: '/current-leaves', roles: ['manager', 'hr', 'admin'] },
+  { icon: MessageSquare, label: 'Messages', path: '/messages', roles: ['all'] },
   { icon: Users, label: 'My Team', path: '/team', roles: ['team_lead', 'manager'] },
   { icon: BarChart2, label: 'Analytics', path: '/analytics', roles: ['manager', 'hr', 'accounting'] },
   { icon: Shield, label: 'HR Portal', path: '/hr', roles: ['hr'] },
@@ -109,6 +113,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
           <NavLink
             key={item.path}
             to={item.path}
+            end={item.path === '/leave'}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 transition-all duration-150 hover:bg-gray-800 hover:text-white ${
                 isActive ? 'border-l-4' : ''

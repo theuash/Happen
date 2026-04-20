@@ -13,6 +13,8 @@ function AppLayout() {
     '/leave': 'My Leave Requests',
     '/leave/request': 'Request Leave',
     '/leave/queue': 'Leave Queue',
+    '/current-leaves': 'Current Leaves',
+    '/messages': 'Messages',
     '/leave/all': 'All Leave Requests',
     '/team': 'My Team',
     '/analytics': 'Analytics',

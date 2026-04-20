@@ -16,16 +16,18 @@ const tomorrowStr  = ()  => fmt(new Date(Date.now() + 86400000))
 const oneWeekAhead = ()  => fmt(new Date(Date.now() + 7 * 86400000))
 
 // Only HR + manager receive leave notifications
-async function notifyHRManager(title, message, type = 'info') {
+async function notifyHRManager(title, message, type = 'info', refUserId = null) {
   const [hrUsers, manager] = await Promise.all([
     User.find({ role: 'hr' }, '_id').lean(),
     User.findOne({ role: 'manager' }, '_id').lean(),
   ])
   const ids = [...hrUsers.map(h => h._id), manager?._id].filter(Boolean)
-  if (ids.length) await Notification.insertMany(ids.map(uid => ({ user_id: uid, title, message, type })))
+  const link = refUserId ? `/current-leaves?employee=${refUserId}` : '/current-leaves'
+  if (ids.length) await Notification.insertMany(ids.map(uid => ({ user_id: uid, title, message, type, link, ref_user_id: refUserId })))
 }
 
 // ── GET /api/leave-requests/queue  (all queued, global, sorted by position)
+// NOTE: must be before /:id to avoid Express matching 'queue' as an id param
 router.get('/queue', verifyToken, async (req, res) => {
   try {
     const queue = await LeaveRequest.find({ status: 'queued' })
@@ -140,7 +142,8 @@ router.post('/', verifyToken, async (req, res) => {
       await notifyHRManager(
         '🚨 Emergency Leave',
         `${me.first_name} ${me.last_name} has taken emergency leave. Proof required within 24 hours.`,
-        'error'
+        'error',
+        me._id
       )
       await AuditLog.create({ user_id: me._id, action: 'leave_request.emergency', details: 'Emergency leave taken', ip_address: req.ip })
       return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'emergency', message: 'Emergency leave granted. HR and your manager have been notified.' })
@@ -157,7 +160,7 @@ router.post('/', verifyToken, async (req, res) => {
         half_day: true, am_pm: am_pm || 'AM', reason,
         status: 'approved', decision_date: new Date(),
       })
-      await notifyHRManager('Wellness Half-Day', `${me.first_name} ${me.last_name} is taking a wellness half-day (${am_pm || 'AM'}).`)
+      await notifyHRManager('Wellness Half-Day', `${me.first_name} ${me.last_name} is taking a wellness half-day (${am_pm || 'AM'}).`, 'info', me._id)
       return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: 'Wellness half-day approved.' })
     }
 
@@ -173,7 +176,7 @@ router.post('/', verifyToken, async (req, res) => {
         start_date: date, end_date: date, days_count: 1,
         reason: reason || null, status: 'approved', decision_date: new Date(),
       })
-      await notifyHRManager('Sick Leave', `${me.first_name} ${me.last_name} is on sick leave ${date === todayStr() ? 'today' : 'tomorrow'}.`, 'warning')
+      await notifyHRManager('Sick Leave', `${me.first_name} ${me.last_name} is on sick leave ${date === todayStr() ? 'today' : 'tomorrow'}.`, 'warning', me._id)
       return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: `Sick leave approved for ${date}.` })
     }
 
@@ -201,7 +204,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       await notifyHRManager(
         'New Annual Leave Request',
-        `${me.first_name} ${me.last_name} requested annual leave ${start_date} → ${end_date}. Status: ${status}${status === 'queued' ? ` (queue #${queue_position})` : ''}.`
+        `${me.first_name} ${me.last_name} requested annual leave ${start_date} → ${end_date}. Status: ${status}${status === 'queued' ? ` (queue #${queue_position})` : ''}.`,
+        'info',
+        me._id
       )
       await AuditLog.create({ user_id: me._id, action: 'leave_request.created', details: `Annual leave ${start_date}→${end_date}`, ip_address: req.ip })
 

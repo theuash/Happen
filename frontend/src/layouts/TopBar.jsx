@@ -170,17 +170,38 @@ function TopBar({ title }) {
                 ) : notifications.map(n => (
                   <div
                     key={n.id}
-                    className="px-4 py-3 border-b hover:bg-gray-50 transition-colors"
+                    className="px-4 py-3 border-b hover:bg-gray-50 transition-colors cursor-pointer"
                     style={{
                       borderColor: 'var(--border)',
                       background: n.is_read ? 'white' : 'var(--orange-pale)',
                     }}
+                    onClick={async () => {
+                      // Mark read
+                      if (!n.is_read) {
+                        try { await api.patch(`/notifications/${n.id}/read`); } catch {}
+                        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+                      }
+                      // Navigate if link exists
+                      if (n.link) {
+                        setShowNotifs(false);
+                        navigate(n.link);
+                      }
+                    }}
                   >
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{n.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{n.message}</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{n.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{n.message}</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {n.link && (
+                        <span className="text-xs mt-1 flex-shrink-0 font-semibold" style={{ color: 'var(--orange)' }}>
+                          View →
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -13,6 +13,8 @@ import LeavePage from './pages/LeavePage';
 import LeaveRequestPage from './pages/LeaveRequestPage';
 import AllLeavesPage from './pages/AllLeavesPage';
 import LeavesQueuePage from './pages/LeavesQueuePage';
+import CurrentLeavesPage from './pages/CurrentLeavesPage';
+import MessagesPage from './pages/MessagesPage';
 import TeamPage from './pages/TeamPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import HRPage from './pages/HRPage';
@@ -49,6 +51,8 @@ function App() {
               <Route path="/leave" element={<LeavePage />} />
               <Route path="/leave/request" element={<LeaveRequestPage />} />
               <Route path="/leave/queue" element={<LeavesQueuePage />} />
+              <Route path="/current-leaves" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'admin']}><CurrentLeavesPage /></ProtectedRoute>} />
+              <Route path="/messages" element={<MessagesPage />} />
               <Route path="/leave/all" element={<ProtectedRoute allowedRoles={['team_lead', 'manager', 'hr', 'admin']}><AllLeavesPage /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute allowedRoles={['team_lead', 'manager']}><TeamPage /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'accounting']}><AnalyticsPage /></ProtectedRoute>} />

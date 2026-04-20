@@ -29,9 +29,10 @@ async function seedLeaves() {
   const manager = await get('michael@creativesolutions.com')
   const hrUsers = await User.find({ role: 'hr' }, '_id').lean()
 
-  const notifyHRManager = async (title, message) => {
+  const notifyHRManager = async (title, message, refUserId = null) => {
     const ids = [...hrUsers.map(h => h._id), manager._id]
-    await Notification.insertMany(ids.map(uid => ({ user_id: uid, title, message, type: 'info' })))
+    const link = refUserId ? `/current-leaves?employee=${refUserId}` : '/current-leaves'
+    await Notification.insertMany(ids.map(uid => ({ user_id: uid, title, message, type: 'info', link, ref_user_id: refUserId })))
   }
 
   const leaveDefs = [
@@ -93,7 +94,8 @@ async function seedLeaves() {
     if (l.status === 'queued') {
       await notifyHRManager(
         'New Leave Request in Queue',
-        `${u.first_name} ${u.last_name} requested annual leave ${fmt(l.start)} → ${fmt(l.end)} (queue #${l.queue_position}).`
+        `${u.first_name} ${u.last_name} requested annual leave ${fmt(l.start)} → ${fmt(l.end)} (queue #${l.queue_position}).`,
+        u._id
       )
     }
     if (l.type === 'emergency') {
@@ -103,6 +105,8 @@ async function seedLeaves() {
         title: '🚨 Emergency Leave',
         message: `${u.first_name} ${u.last_name} has taken emergency leave. Proof required within 24 hours.`,
         type: 'error',
+        link: `/current-leaves?employee=${u._id}`,
+        ref_user_id: u._id,
       })))
     }
   }
