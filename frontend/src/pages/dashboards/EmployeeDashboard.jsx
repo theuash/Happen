@@ -2,373 +2,250 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/axios';
-import { Calendar, TrendingUp, TrendingDown, Clock, Users, Video } from 'lucide-react';
-import { toast } from 'sonner';
+import { TrendingUp, TrendingDown, Clock, Video, CalendarDays, AlertCircle } from 'lucide-react';
 
 function EmployeeDashboard() {
   const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const [leaveBalance, setLeaveBalance] = useState(null);
+  const user = useAuthStore((s) => s.user);
+  const [balance, setBalance] = useState(null);
   const [workload, setWorkload] = useState(null);
-  const [queuePosition, setQueuePosition] = useState(null);
+  const [queuePos, setQueuePos] = useState(null);
   const [activity, setActivity] = useState([]);
-  const [upcomingLeaves, setUpcomingLeaves] = useState([]);
-  const [meetings, setMeetings] = useState([]);
+  const [teamLeaves, setTeamLeaves] = useState([]);
   const [managerLeaves, setManagerLeaves] = useState([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchAll(); }, [user?.id]);
 
-  const fetchData = async () => {
+  const fetchAll = async () => {
     try {
-      const [balanceRes, queueRes, activityRes] = await Promise.all([
+      const [balRes, qRes, actRes] = await Promise.all([
         api.get('/me/leave-balance'),
         api.get('/me/queue-position'),
         api.get('/me/activity'),
       ]);
-      
-      setLeaveBalance(balanceRes.data);
-      setQueuePosition(queueRes.data);
-      setActivity(activityRes.data);
+      setBalance(balRes.data);
+      setQueuePos(qRes.data);
+      setActivity(actRes.data);
 
-      // Fetch workload if team_id exists
       if (user?.team_id) {
-        const workloadRes = await api.get(`/teams/${user.team_id}/workload`);
-        setWorkload(workloadRes.data);
-        
-        const calendarRes = await api.get(`/teams/${user.team_id}/calendar`);
-        setUpcomingLeaves(calendarRes.data.slice(0, 5));
+        const [wlRes, calRes] = await Promise.all([
+          api.get(`/teams/${user.team_id}/workload`),
+          api.get(`/teams/${user.team_id}/calendar`),
+        ]);
+        setWorkload(wlRes.data);
+        setTeamLeaves(calRes.data.slice(0, 5));
       }
 
-      // Manager/HR leave announcements
-      const mgLeaveRes = await api.get('/manager-leave');
+      const mgRes = await api.get('/manager-leave');
       const today = new Date().toISOString().split('T')[0];
-      setManagerLeaves(
-        mgLeaveRes.data.filter(l => l.end_date >= today).slice(0, 3)
-      );
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      setManagerLeaves(mgRes.data.filter(l => l.end_date >= today).slice(0, 3));
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const CircularGauge = ({ percentage, trend }) => {
-    const conicGradient = `conic-gradient(
-      ${percentage > 80 ? '#EF4444' : percentage > 50 ? '#F59E0B' : '#22C55E'} ${percentage * 3.6}deg,
-      #E5E7EB ${percentage * 3.6}deg
-    )`;
+  const pct = workload?.workload_current ?? 0;
+  const gaugeColor = pct >= 80 ? '#EF4444' : pct >= 50 ? '#F59E0B' : '#22C55E';
+  const conicBg = `conic-gradient(${gaugeColor} ${pct * 3.6}deg, #E5E7EB ${pct * 3.6}deg)`;
 
-    return (
-      <div className="relative w-40 h-40 mx-auto">
-        <div
-          className="w-full h-full rounded-full"
-          style={{ background: conicGradient }}
-        >
-          <div className="absolute inset-3 bg-white rounded-full flex items-center justify-center flex-col">
-            <span className="text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              {percentage}%
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              {trend > 0 ? (
-                <TrendingUp size={16} style={{ color: '#EF4444' }} />
-              ) : (
-                <TrendingDown size={16} style={{ color: '#22C55E' }} />
-              )}
-              <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {Math.abs(trend)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
 
-  const MiniCalendar = () => {
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
-    const currentDay = today.getDate();
-
-    return (
-      <div className="grid grid-cols-7 gap-1 text-center text-xs">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-          <div key={i} className="font-semibold py-1" style={{ color: 'var(--text-secondary)' }}>
-            {day}
-          </div>
-        ))}
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`}></div>
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const isToday = day === currentDay;
-          return (
-            <div
-              key={day}
-              className={`py-1 rounded ${isToday ? 'font-bold text-white' : ''}`}
-              style={{
-                background: isToday ? 'var(--orange)' : 'transparent',
-                color: isToday ? 'white' : 'var(--text-primary)',
-              }}
-            >
-              {day}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  const activityIcons = { 'login': '🔑', 'leave_request.created': '📋', 'leave_request.approved': '✅', 'leave_request.denied': '❌', 'password.reset': '🔒' };
 
   return (
-    <div className="space-y-6" data-testid="employee-dashboard">
-      {/* Queue Status Banner */}
-      {queuePosition && queuePosition.position && (
-        <div
-          className="card border-l-4 animate-slideIn"
-          style={{ borderLeftColor: 'var(--orange)', background: 'var(--orange-pale)' }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Clock size={24} style={{ color: 'var(--orange)' }} />
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  You're #{queuePosition.position} in queue
-                </p>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Estimated approval: {new Date(queuePosition.estimated_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/leave')}
-              className="px-4 py-2 rounded-lg font-medium text-white transition-all duration-200 hover:-translate-y-0.5"
-              style={{ background: 'var(--orange)' }}
-            >
-              View Details
-            </button>
+    <div className="space-y-5">
+      {/* Manager/HR leave banners */}
+      {managerLeaves.map(l => (
+        <div key={l.id} className="card border-l-4 flex items-center gap-4 py-3" style={{ borderLeftColor: '#8B5CF6', background: '#F5F3FF' }}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: '#8B5CF6' }}>
+            {l.first_name?.charAt(0)}{l.last_name?.charAt(0)}
+          </div>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: '#4C1D95' }}>
+              {l.role === 'hr' ? 'HR' : 'Manager'} Leave Notice
+            </p>
+            <p className="text-sm" style={{ color: '#6D28D9' }}>
+              <b>{l.first_name} {l.last_name}</b> on leave {new Date(l.start_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} – {new Date(l.end_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+            </p>
           </div>
         </div>
-      )}
+      ))}
 
-      {/* Manager / HR Leave Announcements */}
-      {managerLeaves.length > 0 && (
-        <div className="space-y-2">
-          {managerLeaves.map((l) => (
-            <div
-              key={l.id}
-              className="card border-l-4 flex items-center gap-4 py-3"
-              style={{ borderLeftColor: '#8B5CF6', background: '#F5F3FF' }}
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{ background: '#8B5CF6' }}
-              >
-                {l.first_name?.charAt(0)}{l.last_name?.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-sm" style={{ color: '#4C1D95' }}>
-                  {l.role === 'hr' ? 'HR' : 'Manager'} Leave Notice
-                </p>
-                <p className="text-sm" style={{ color: '#6D28D9' }}>
-                  <span className="font-medium">{l.first_name} {l.last_name}</span> will be on leave from{' '}
-                  <span className="font-medium">
-                    {new Date(l.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>{' '}to{' '}
-                  <span className="font-medium">
-                    {new Date(l.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                </p>
-              </div>
+      {/* Queue banner */}
+      {queuePos?.position && (
+        <div className="card border-l-4 flex items-center justify-between py-3" style={{ borderLeftColor: 'var(--orange)', background: 'var(--orange-pale)' }}>
+          <div className="flex items-center gap-3">
+            <Clock size={22} style={{ color: 'var(--orange)' }} />
+            <div>
+              <p className="font-semibold">You're #{queuePos.position} in the leave queue</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Est. approval: {new Date(queuePos.estimated_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+              </p>
             </div>
-          ))}
+          </div>
+          <button onClick={() => navigate('/leave/queue')} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--orange)' }}>
+            View Queue
+          </button>
         </div>
       )}
 
-      {/* 3-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Card - Leave Balances */}
-        <div className="card">
-          <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            Leave Balances
-          </h3>
-          {leaveBalance ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Annual</span>
-                <span className="text-2xl font-bold" style={{ color: 'var(--orange)' }}>
-                  {leaveBalance.annual} days
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Sick</span>
-                <span className="text-2xl font-bold" style={{ color: 'var(--success)' }}>
-                  {leaveBalance.sick} days
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Wellness</span>
-                <span className="text-2xl font-bold" style={{ color: 'var(--warning)' }}>
-                  {2 - leaveBalance.wellness_used} remaining
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Emergency</span>
-                <span className="text-2xl font-bold" style={{ color: '#DC2626' }}>
-                  {3 - leaveBalance.emergency_used} remaining
-                </span>
-              </div>
+      {/* 3-col grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-              <div className="pt-4 space-y-2">
-                <button
-                  onClick={() => navigate('/leave/request')}
-                  className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
-                  style={{ background: 'var(--orange)' }}
-                >
+        {/* LEFT — Leave Balances */}
+        <div className="card space-y-4">
+          <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Leave Balances</h3>
+
+          {balance ? (
+            <>
+              {[
+                { label: 'Annual', value: balance.annual, total: 20, color: 'var(--orange)' },
+                { label: 'Sick', value: balance.sick, total: 10, color: 'var(--success)' },
+                { label: 'Wellness', value: 2 - (balance.wellness_used ?? 0), total: 2, color: '#8B5CF6' },
+                { label: 'Emergency', value: 3 - (balance.emergency_used ?? 0), total: 3, color: '#DC2626' },
+              ].map(({ label, value, total, color }) => (
+                <div key={label}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium">{label}</span>
+                    <span className="font-bold" style={{ color }}>{value} <span className="text-xs font-normal text-gray-400">/ {total} days</span></span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="h-2 rounded-full transition-all duration-500" style={{ background: color, width: `${Math.max(0,(value/total)*100)}%` }} />
+                  </div>
+                </div>
+              ))}
+
+              <div className="pt-2 space-y-2">
+                <button onClick={() => navigate('/leave/request')} className="w-full py-2.5 rounded-lg font-semibold text-white text-sm hover:-translate-y-0.5 transition-all" style={{ background: 'var(--orange)' }}>
                   Request Leave
                 </button>
-                <button
-                  onClick={() => navigate('/leave/request?type=emergency')}
-                  className="w-full py-3 rounded-lg font-semibold border-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
-                  style={{ borderColor: '#DC2626', color: '#DC2626' }}
-                >
+                <button onClick={() => navigate('/leave/request?type=emergency')} className="w-full py-2.5 rounded-lg font-semibold text-sm border-2 hover:-translate-y-0.5 transition-all" style={{ borderColor: '#DC2626', color: '#DC2626' }}>
                   Emergency Leave
                 </button>
-                <button
-                  onClick={() => navigate('/calendar')}
-                  className="w-full py-3 rounded-lg font-semibold border-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
-                  style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}
-                >
+                <button onClick={() => navigate('/calendar')} className="w-full py-2.5 rounded-lg font-semibold text-sm border-2 hover:-translate-y-0.5 transition-all" style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}>
                   My Calendar
                 </button>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="shimmer h-64 rounded"></div>
+            <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="shimmer h-8 rounded" />)}</div>
           )}
         </div>
 
-        {/* Middle Card - Team Workload */}
-        <div className="card">
-          <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            Team Workload
-          </h3>
+        {/* MIDDLE — Team Workload */}
+        <div className="card space-y-4">
+          <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Team Workload</h3>
+
           {workload ? (
-            <div className="space-y-4">
-              <CircularGauge percentage={workload.workload_current || 65} trend={10} />
-              
-              {workload.upcoming_deadlines && workload.upcoming_deadlines.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    Upcoming Deadlines
-                  </p>
-                  {workload.upcoming_deadlines.map((deadline, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2 rounded" style={{ background: 'var(--page-bg)' }}>
-                      <span className="text-sm">{deadline.first_name} {deadline.last_name}</span>
+            <>
+              <div className="relative w-40 h-40 mx-auto">
+                <div className="w-full h-full rounded-full" style={{ background: conicBg }}>
+                  <div className="absolute inset-3 bg-white rounded-full flex flex-col items-center justify-center">
+                    <span className="text-4xl font-bold" style={{ color: gaugeColor }}>{pct}%</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      {pct > 50 ? <TrendingUp size={14} style={{ color: '#EF4444' }} /> : <TrendingDown size={14} style={{ color: '#22C55E' }} />}
                       <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {new Date(deadline.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {pct >= 80 ? 'High' : pct >= 50 ? 'Medium' : 'Low'}
                       </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>On Leave This Month</p>
+                {workload.upcoming_deadlines?.length > 0 ? (
+                  workload.upcoming_deadlines.map((d, i) => (
+                    <div key={i} className="flex justify-between items-center py-1.5 border-b last:border-0 text-sm" style={{ borderColor: 'var(--border)' }}>
+                      <span>{d.first_name} {d.last_name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--orange-pale)', color: 'var(--orange)' }}>
+                        {new Date(d.start_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>No upcoming leaves</p>
+                )}
+              </div>
+            </>
           ) : (
-            <div className="shimmer h-64 rounded"></div>
+            <div className="shimmer h-48 rounded" />
           )}
         </div>
 
-        {/* Right Card - Team Calendar */}
-        <div className="card">
-          <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            Team Calendar
+        {/* RIGHT — Mini Calendar + Events */}
+        <div className="card space-y-4">
+          <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+            {today.toLocaleString('default',{month:'long',year:'numeric'})}
           </h3>
-          <MiniCalendar />
-          
-          <div className="mt-4 space-y-2">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              Today's Events
-            </p>
-            {upcomingLeaves.length > 0 ? (
-              upcomingLeaves.slice(0, 3).map((leave, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 rounded" style={{ background: 'var(--orange-pale)' }}>
-                  <div className="w-2 h-2 rounded-full" style={{ background: 'var(--orange)' }}></div>
-                  <span className="text-sm flex-1">{leave.first_name} {leave.last_name}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {leave.type}
-                  </span>
+
+          {/* Mini calendar */}
+          <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
+            {['S','M','T','W','T','F','S'].map((d,i) => (
+              <div key={i} className="py-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>{d}</div>
+            ))}
+            {Array.from({length: firstDay}).map((_,i) => <div key={`e${i}`} />)}
+            {Array.from({length: daysInMonth}).map((_,i) => {
+              const d = i + 1;
+              const isToday = d === today.getDate();
+              return (
+                <div key={d} className="py-1 rounded font-medium" style={{
+                  background: isToday ? 'var(--orange)' : 'transparent',
+                  color: isToday ? 'white' : 'var(--text-primary)',
+                }}>
+                  {d}
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>
-                No events today
-              </p>
-            )}
+              );
+            })}
           </div>
 
-          {meetings.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Upcoming Meetings
-              </p>
-              {meetings.map((meeting, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded border" style={{ borderColor: 'var(--border)' }}>
-                  <div className="flex items-center gap-2">
-                    <Video size={16} style={{ color: 'var(--orange)' }} />
-                    <span className="text-sm">{meeting.title}</span>
-                  </div>
-                  <button
-                    className="px-3 py-1 rounded text-xs font-medium text-white"
-                    style={{ background: 'var(--success)' }}
-                  >
-                    Join
-                  </button>
+          {/* Today's team leaves */}
+          <div>
+            <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Team on Leave</p>
+            {teamLeaves.length > 0 ? teamLeaves.slice(0,4).map((l,i) => (
+              <div key={i} className="flex items-center gap-2 py-1.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--orange)' }}>
+                  {l.first_name?.charAt(0)}
                 </div>
-              ))}
-            </div>
-          )}
+                <span className="text-sm flex-1">{l.first_name} {l.last_name}</span>
+                <span className="text-xs capitalize px-1.5 py-0.5 rounded" style={{ background: 'var(--orange-pale)', color: 'var(--orange)' }}>{l.type}</span>
+              </div>
+            )) : (
+              <p className="text-sm text-center py-3" style={{ color: 'var(--text-secondary)' }}>Everyone's in today</p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom - Recent Activity Feed */}
+      {/* Recent Activity */}
       <div className="card">
-        <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Recent Activity
-        </h3>
+        <h3 className="font-bold text-lg mb-4" style={{ color: 'var(--text-primary)' }}>Recent Activity</h3>
         {activity.length > 0 ? (
-          <div className="space-y-4">
-            {activity.slice(0, 5).map((item, idx) => (
-              <div key={idx} className="flex gap-4 items-start">
-                <div className="relative">
-                  <div
-                    className="w-3 h-3 rounded-full mt-1"
-                    style={{ background: 'var(--orange)' }}
-                  ></div>
-                  {idx < activity.length - 1 && (
-                    <div
-                      className="absolute left-1/2 -translate-x-1/2 top-4 w-0.5 h-12"
-                      style={{ background: 'var(--border)' }}
-                    ></div>
-                  )}
+          <div className="space-y-3">
+            {activity.slice(0,5).map((item, i) => (
+              <div key={i} className="flex gap-4 items-start">
+                <div className="relative flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-base" style={{ background: 'var(--orange-pale)' }}>
+                    {activityIcons[item.action] || '📌'}
+                  </div>
+                  {i < 4 && <div className="absolute left-1/2 -translate-x-1/2 top-8 w-0.5 h-6" style={{ background: 'var(--border)' }} />}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {item.action}
+                <div className="flex-1 pb-3">
+                  <p className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>
+                    {item.action?.replace(/_/g,' ').replace(/\./g,' — ')}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                    {item.details}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                    {new Date(item.created_at).toLocaleString()}
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{item.details}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(item.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
                   </p>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
-            No recent activity
-          </p>
+          <p className="text-center py-8 text-sm" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
         )}
       </div>
     </div>
