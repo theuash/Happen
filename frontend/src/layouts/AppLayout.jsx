@@ -10,8 +10,10 @@ function AppLayout() {
   const pageTitles = {
     '/dashboard': 'Dashboard',
     '/calendar': 'Calendar',
-    '/leave': 'Leave Requests',
+    '/leave': 'My Leave Requests',
     '/leave/request': 'Request Leave',
+    '/leave/queue': 'Leave Queue',
+    '/leave/all': 'All Leave Requests',
     '/team': 'My Team',
     '/analytics': 'Analytics',
     '/hr': 'HR Portal',

@@ -5,11 +5,14 @@ import { queryClient } from './lib/queryClient';
 import ToastProvider from './components/ToastProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './layouts/AppLayout';
+import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import CalendarPage from './pages/CalendarPage';
 import LeavePage from './pages/LeavePage';
 import LeaveRequestPage from './pages/LeaveRequestPage';
+import AllLeavesPage from './pages/AllLeavesPage';
+import LeavesQueuePage from './pages/LeavesQueuePage';
 import TeamPage from './pages/TeamPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import HRPage from './pages/HRPage';
@@ -31,36 +34,37 @@ function App() {
       <ToastProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
             
             <Route
-              path="/"
               element={
                 <ProtectedRoute>
                   <AppLayout />
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/dashboard" />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="calendar" element={<CalendarPage />} />
-              <Route path="leave" element={<LeavePage />} />
-              <Route path="leave/request" element={<LeaveRequestPage />} />
-              <Route path="team" element={<ProtectedRoute allowedRoles={['team_lead', 'manager']}><TeamPage /></ProtectedRoute>} />
-              <Route path="analytics" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'accounting']}><AnalyticsPage /></ProtectedRoute>} />
-              <Route path="hr" element={<ProtectedRoute allowedRoles={['hr']}><HRPage /></ProtectedRoute>} />
-              <Route path="payroll" element={<ProtectedRoute allowedRoles={['accounting']}><PayrollPage /></ProtectedRoute>} />
-              <Route path="donation" element={<DonationPage />} />
-              <Route path="wellness" element={<WellnessPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="admin" element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />
-              <Route path="admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
-              <Route path="admin/passwords" element={<ProtectedRoute allowedRoles={['admin']}><AdminPasswordsPage /></ProtectedRoute>} />
-              <Route path="admin/audit" element={<ProtectedRoute allowedRoles={['admin']}><AdminAuditPage /></ProtectedRoute>} />
-              <Route path="admin/impersonate" element={<ProtectedRoute allowedRoles={['admin']}><AdminImpersonatePage /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/leave" element={<LeavePage />} />
+              <Route path="/leave/request" element={<LeaveRequestPage />} />
+              <Route path="/leave/queue" element={<LeavesQueuePage />} />
+              <Route path="/leave/all" element={<ProtectedRoute allowedRoles={['team_lead', 'manager', 'hr', 'admin']}><AllLeavesPage /></ProtectedRoute>} />
+              <Route path="/team" element={<ProtectedRoute allowedRoles={['team_lead', 'manager']}><TeamPage /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'accounting']}><AnalyticsPage /></ProtectedRoute>} />
+              <Route path="/hr" element={<ProtectedRoute allowedRoles={['hr']}><HRPage /></ProtectedRoute>} />
+              <Route path="/payroll" element={<ProtectedRoute allowedRoles={['accounting']}><PayrollPage /></ProtectedRoute>} />
+              <Route path="/donation" element={<DonationPage />} />
+              <Route path="/wellness" element={<WellnessPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
+              <Route path="/admin/passwords" element={<ProtectedRoute allowedRoles={['admin']}><AdminPasswordsPage /></ProtectedRoute>} />
+              <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['admin']}><AdminAuditPage /></ProtectedRoute>} />
+              <Route path="/admin/impersonate" element={<ProtectedRoute allowedRoles={['admin']}><AdminImpersonatePage /></ProtectedRoute>} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard" />} />
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

@@ -25,7 +25,21 @@ function LeaveRequestPage() {
 
     try {
       const res = await api.post('/leave-requests', formData);
-      setResult(res.data);
+      const data = res.data;
+      
+      // Format the result for display
+      setResult({
+        status: data.status,
+        queue_position: data.queue_position,
+        message: data.status === 'approved' 
+          ? 'Your leave request has been automatically approved!' 
+          : data.status === 'queued'
+          ? `Your request has been added to the queue at position #${data.queue_position}`
+          : data.status === 'emergency'
+          ? 'Emergency leave granted. Please submit proof within 24 hours.'
+          : 'Your leave request is pending review.',
+      });
+      
       toast.success('Leave request submitted!');
     } catch (error) {
       toast.error(formatApiErrorDetail(error.response?.data?.detail) || error.message);

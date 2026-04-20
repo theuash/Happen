@@ -14,13 +14,17 @@ import {
   Lock,
   ChevronLeft,
   LogOut,
+  ListChecks,
+  Clock,
 } from 'lucide-react';
 import api from '../lib/axios';
 
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['all'] },
   { icon: Calendar, label: 'Calendar', path: '/calendar', roles: ['all'] },
-  { icon: ClipboardList, label: 'Leave Requests', path: '/leave', roles: ['all'] },
+  { icon: ClipboardList, label: 'My Leave Requests', path: '/leave', roles: ['all'] },
+  { icon: ListChecks, label: 'All Leaves', path: '/leave/all', roles: ['team_lead', 'manager', 'hr', 'admin'] },
+  { icon: Clock, label: 'Leave Queue', path: '/leave/queue', roles: ['all'] },
   { icon: Users, label: 'My Team', path: '/team', roles: ['team_lead', 'manager'] },
   { icon: BarChart2, label: 'Analytics', path: '/analytics', roles: ['manager', 'hr', 'accounting'] },
   { icon: Shield, label: 'HR Portal', path: '/hr', roles: ['hr'] },
@@ -50,14 +54,9 @@ function Sidebar({ collapsed, onToggleCollapse }) {
     (item) => item.roles.includes('all') || item.roles.includes(user?.role)
   );
 
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const getInitials = (user) => {
+    if (!user) return 'U';
+    return `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}`.toUpperCase() || 'U';
   };
 
   return (
@@ -141,11 +140,13 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
             style={{ background: 'var(--orange)' }}
           >
-            {getInitials(user?.name)}
+            {getInitials(user)}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <div className="text-white text-sm font-medium truncate">{user?.name}</div>
+              <div className="text-white text-sm font-medium truncate">
+                {user?.first_name} {user?.last_name}
+              </div>
               <div
                 className="text-xs px-2 py-0.5 rounded inline-block mt-1"
                 style={{ background: 'var(--orange-dark)', color: 'white' }}

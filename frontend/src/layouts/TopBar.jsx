@@ -20,14 +20,9 @@ function TopBar({ title }) {
     navigate('/login');
   };
 
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const getInitials = (user) => {
+    if (!user) return 'U';
+    return `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}`.toUpperCase() || 'U';
   };
 
   return (
@@ -73,7 +68,7 @@ function TopBar({ title }) {
               className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs"
               style={{ background: 'var(--orange)' }}
             >
-              {getInitials(user?.name)}
+              {getInitials(user)}
             </div>
           </button>
 

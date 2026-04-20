@@ -12,6 +12,28 @@ function daysBetween(start, end) {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 }
 
+// GET /api/leave-requests/all - Get all leave requests (for managers/HR/admin)
+router.get('/all', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
+  const user = db.prepare('SELECT role, team_id FROM users WHERE id = ?').get([req.user.id])
+  
+  let query = `
+    SELECT lr.*, u.first_name, u.last_name, u.email, u.avatar, u.team_id, t.name as team_name
+    FROM leave_requests lr
+    JOIN users u ON lr.user_id = u.id
+    LEFT JOIN teams t ON u.team_id = t.id
+  `
+  
+  // If team_lead, only show their team's requests
+  if (user.role === 'team_lead' && user.team_id) {
+    query += ` WHERE u.team_id = ${user.team_id}`
+  }
+  
+  query += ` ORDER BY lr.created_at DESC`
+  
+  const requests = db.prepare(query).all()
+  res.json(requests)
+})
+
 // POST /api/leave-requests
 router.post('/', verifyToken, (req, res) => {
   const { start_date, end_date, type, reason, is_emergency } = req.body

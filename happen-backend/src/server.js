@@ -17,6 +17,7 @@ import donationRoutes from './routes/donations.js'
 import wellnessRoutes from './routes/wellness.js'
 import notificationRoutes from './routes/notifications.js'
 import employeeRoutes from './routes/employee.js'
+import managerLeaveRoutes from './routes/managerLeave.js'
 
 dotenv.config()
 
@@ -52,6 +53,7 @@ async function start() {
   app.use('/api/wellness', wellnessRoutes)
   app.use('/api/notifications', notificationRoutes)
   app.use('/api/employees', employeeRoutes)
+  app.use('/api/manager-leave', managerLeaveRoutes)
 
   // Error handling middleware (optional)
   app.use((err, req, res, next) => {

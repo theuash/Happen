@@ -36,7 +36,7 @@ function LoginPage() {
         email: loginEmail,
         password: loginPassword,
       });
-      login(data, data.token);
+      login(data.user, data.token);
       navigate('/dashboard');
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
