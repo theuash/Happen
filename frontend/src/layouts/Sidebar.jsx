@@ -14,7 +14,6 @@ import {
   Lock,
   ChevronLeft,
   LogOut,
-  ListChecks,
   Clock,
 } from 'lucide-react';
 import api from '../lib/axios';
@@ -22,8 +21,7 @@ import api from '../lib/axios';
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['all'] },
   { icon: Calendar, label: 'Calendar', path: '/calendar', roles: ['all'] },
-  { icon: ClipboardList, label: 'My Leave Requests', path: '/leave', roles: ['all'] },
-  { icon: ListChecks, label: 'All Leaves', path: '/leave/all', roles: ['team_lead', 'manager', 'hr', 'admin'] },
+  { icon: ClipboardList, label: 'My Leave Requests', path: '/leave', roles: ['employee', 'team_lead', 'accounting', 'admin'] },
   { icon: Clock, label: 'Leave Queue', path: '/leave/queue', roles: ['all'] },
   { icon: Users, label: 'My Team', path: '/team', roles: ['team_lead', 'manager'] },
   { icon: BarChart2, label: 'Analytics', path: '/analytics', roles: ['manager', 'hr', 'accounting'] },
