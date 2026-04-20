@@ -1,88 +1,60 @@
 import express from 'express'
-import db from '../db/database.js'
+import LeaveRequest from '../db/models/LeaveRequest.js'
+import User from '../db/models/User.js'
+import Team from '../db/models/Team.js'
+import Notification from '../db/models/Notification.js'
+import AuditLog from '../db/models/AuditLog.js'
 import { verifyToken } from '../middleware/auth.js'
 import { requireRole } from '../middleware/roleGuard.js'
 
 const router = express.Router()
 
-function daysBetween(start, end) {
-  return Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
-}
+router.post('/', verifyToken, requireRole('manager','hr'), async (req, res) => {
+  try {
+    const { start_date, end_date, reason } = req.body
+    if (!start_date || !end_date) return res.status(400).json({ error: 'start_date and end_date required' })
 
-// POST /api/manager-leave  — schedule leave for manager or HR
-// Rules: workload must be <= 50 (medium or less), auto-approved, broadcasts to all employees/team_leads/accounting
-router.post('/', verifyToken, requireRole('manager', 'hr'), (req, res) => {
-  const { start_date, end_date, reason } = req.body
+    const me = await User.findById(req.user.id).lean()
+    const teams = await Team.find({}, 'workload_current').lean()
+    const avg = teams.length ? Math.round(teams.reduce((s,t) => s + (t.workload_current||0), 0) / teams.length) : 0
 
-  if (!start_date || !end_date) {
-    return res.status(400).json({ error: 'start_date and end_date are required' })
-  }
+    if (avg > 50) {
+      return res.status(409).json({
+        error: 'Leave cannot be scheduled right now',
+        detail: `Company workload is ${avg}% (above 50% threshold).`,
+        workload: avg,
+      })
+    }
 
-  const self = db.prepare('SELECT id, first_name, last_name, role, team_id FROM users WHERE id = ?').get([req.user.id])
-  if (!self) return res.status(404).json({ error: 'User not found' })
-
-  // Check company-wide workload — use average across all teams
-  const teams = db.prepare('SELECT workload_current FROM teams').all()
-  const avgWorkload = teams.length
-    ? Math.round(teams.reduce((s, t) => s + (t.workload_current || 0), 0) / teams.length)
-    : 0
-
-  if (avgWorkload > 50) {
-    return res.status(409).json({
-      error: 'Leave cannot be scheduled right now',
-      detail: `Company workload is currently ${avgWorkload}% (above the 50% threshold). Please try again when workload is medium or lower.`,
-      workload: avgWorkload,
+    const days = Math.ceil((new Date(end_date) - new Date(start_date)) / 86400000) + 1
+    const lr = await LeaveRequest.create({
+      user_id: me._id, start_date, end_date, days_count: days,
+      type: 'annual', reason: reason || null, status: 'approved', decision_date: new Date(),
     })
-  }
 
-  const daysCount = daysBetween(start_date, end_date)
+    const recipients = await User.find({ role: { $in: ['employee','team_lead','accounting'] }, is_active: true }, '_id').lean()
+    const roleLabel = me.role === 'hr' ? 'HR' : 'Manager'
+    const docs = recipients.map(r => ({
+      user_id: r._id,
+      title: `${roleLabel} Leave Notice`,
+      message: `${me.first_name} ${me.last_name} (${roleLabel}) will be on leave ${start_date} → ${end_date}.${reason ? ` Note: ${reason}` : ''}`,
+      type: 'info',
+    }))
+    await Notification.insertMany(docs)
+    await AuditLog.create({ user_id: me._id, action: 'manager_leave.scheduled', details: `${start_date}→${end_date}`, ip_address: req.ip })
 
-  // Insert as auto-approved leave
-  const info = db.prepare(`
-    INSERT INTO leave_requests (user_id, start_date, end_date, days_count, type, reason, status, decision_date, priority_score)
-    VALUES (?, ?, ?, ?, 'annual', ?, 'approved', ?, 0)
-  `).run([self.id, start_date, end_date, daysCount, reason || null, new Date().toISOString()])
-
-  // Broadcast notification to: all employees, team_leads, accounting
-  const recipients = db.prepare(`
-    SELECT id FROM users
-    WHERE role IN ('employee', 'team_lead', 'accounting') AND is_active = 1
-  `).all()
-
-  const roleLabel = self.role === 'hr' ? 'HR' : 'Manager'
-  const title = `${roleLabel} Leave Notice`
-  const message = `${self.first_name} ${self.last_name} (${roleLabel}) will be on leave from ${start_date} to ${end_date}.${reason ? ` Note: ${reason}` : ''}`
-
-  const insertNotif = db.prepare(
-    'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)'
-  )
-  for (const r of recipients) {
-    insertNotif.run([r.id, title, message, 'info'])
-  }
-
-  // Audit log
-  db.prepare('INSERT INTO audit_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)').run([
-    self.id,
-    'manager_leave.scheduled',
-    `${self.first_name} ${self.last_name} scheduled leave ${start_date} → ${end_date}`,
-    req.ip || '127.0.0.1',
-  ])
-
-  const created = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([info.lastInsertRowid])
-  res.json({ leave: created, workload: avgWorkload, notified: recipients.length })
+    res.json({ leave: { ...lr.toObject(), id: lr._id }, workload: avg, notified: recipients.length })
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }) }
 })
 
-// GET /api/manager-leave — list all manager/HR scheduled leaves (visible to everyone)
-router.get('/', verifyToken, (req, res) => {
-  const leaves = db.prepare(`
-    SELECT lr.*, u.first_name, u.last_name, u.role
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    WHERE u.role IN ('manager', 'hr') AND lr.status = 'approved'
-    ORDER BY lr.start_date DESC
-    LIMIT 20
-  `).all()
-  res.json(leaves)
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const leaves = await LeaveRequest.find({ status: 'approved' })
+      .populate({ path: 'user_id', match: { role: { $in: ['manager','hr'] } }, select: 'first_name last_name role' })
+      .sort({ start_date: -1 }).limit(20).lean()
+    const filtered = leaves.filter(l => l.user_id)
+    res.json(filtered.map(l => ({ ...l, id: l._id, first_name: l.user_id?.first_name, last_name: l.user_id?.last_name, role: l.user_id?.role })))
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 export default router

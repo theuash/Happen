@@ -1,129 +1,95 @@
 import express from 'express'
-import db from '../db/database.js'
+import Team from '../db/models/Team.js'
+import User from '../db/models/User.js'
+import LeaveRequest from '../db/models/LeaveRequest.js'
 import { verifyToken } from '../middleware/auth.js'
 import { requireRole } from '../middleware/roleGuard.js'
 
 const router = express.Router()
 
-// GET /api/teams/:teamId/workload
-router.get('/:teamId/workload', verifyToken, (req, res) => {
-  const team = db.prepare('SELECT workload_current, workload_threshold_high FROM teams WHERE id = ?').get([req.params.teamId])
-  if (!team) {
-    return res.status(404).json({ error: 'Team not found' })
-  }
-  // Trend: not tracked, assume stable
-  const trend = 'stable'
-  // Upcoming deadlines: next 5 approved leaves in this team
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() // 0-11
-  // Get start of month and end of month for filtering upcoming leaves within this month
-  const firstDay = `${year}-${(month+1).toString().padStart(2, '0')}-01`
-  const lastDayDate = new Date(year, month+1, 0)
-  const lastDay = lastDayDate.toISOString().split('T')[0]
+const todayStr = () => new Date().toISOString().split('T')[0]
 
-  const upcoming = db.prepare(`
-    SELECT lr.start_date, lr.end_date, u.first_name, u.last_name
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    WHERE u.team_id = ? AND lr.status IN ('approved','emergency')
-      AND lr.start_date <= ? AND lr.end_date >= ?
-    ORDER BY lr.start_date
-    LIMIT 5
-  `).all([req.params.teamId, lastDay, firstDay])
+router.get('/:teamId/workload', verifyToken, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId).lean()
+    if (!team) return res.status(404).json({ error: 'Team not found' })
 
-  res.json({
-    workload_current: team.workload_current,
-    threshold: team.workload_threshold_high,
-    trend,
-    upcoming_deadlines: upcoming
-  })
+    const today = todayStr()
+    const upcoming = await LeaveRequest.find({
+      status: { $in: ['approved','emergency'] },
+      start_date: { $lte: today },
+      end_date:   { $gte: today },
+    }).populate('user_id','first_name last_name team_id').lean()
+
+    const teamUpcoming = upcoming.filter(l => l.user_id?.team_id?.toString() === req.params.teamId)
+
+    res.json({
+      workload_current:   team.workload_current,
+      threshold:          team.workload_threshold_high,
+      trend:              'stable',
+      upcoming_deadlines: teamUpcoming.map(l => ({
+        first_name: l.user_id?.first_name,
+        last_name:  l.user_id?.last_name,
+        start_date: l.start_date,
+        end_date:   l.end_date,
+      })),
+    })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// GET /api/teams/:teamId/requests (pending/queued) - restricted
-router.get('/:teamId/requests', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  // Verify that the user is authorized for this team: either they manage the team or are HR/admin
-  const user = db.prepare('SELECT role, team_id FROM users WHERE id = ?').get([req.user.id])
-  if (!['hr', 'admin'].includes(user.role) && user.team_id != req.params.teamId) {
-    return res.status(403).json({ error: 'Forbidden' })
-  }
-  const requests = db.prepare(`
-    SELECT lr.*, u.first_name, u.last_name, u.avatar, u.email
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    WHERE u.team_id = ? AND lr.status IN ('pending','queued')
-    ORDER BY lr.created_at DESC
-  `).all([req.params.teamId])
-  res.json(requests)
+router.get('/:teamId/requests', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).lean()
+    if (!['hr','admin','manager'].includes(me.role) && me.team_id?.toString() !== req.params.teamId) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    const members = await User.find({ team_id: req.params.teamId }, '_id').lean()
+    const ids = members.map(m => m._id)
+    const requests = await LeaveRequest.find({ user_id: { $in: ids }, status: { $in: ['pending','queued'] } })
+      .populate('user_id','first_name last_name email avatar').sort({ createdAt: -1 }).lean()
+    res.json(requests.map(r => ({ ...r, id: r._id, first_name: r.user_id?.first_name, last_name: r.user_id?.last_name, email: r.user_id?.email })))
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// GET /api/teams/:teamId/queue
-router.get('/:teamId/queue', verifyToken, (req, res) => {
-  const queue = db.prepare(`
-    SELECT lr.*, u.first_name, u.last_name, u.avatar
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    WHERE u.team_id = ? AND lr.status = 'queued'
-    ORDER BY lr.priority_score DESC, lr.created_at ASC
-  `).all([req.params.teamId])
-  res.json(queue)
+router.get('/:teamId/queue', verifyToken, async (req, res) => {
+  try {
+    const members = await User.find({ team_id: req.params.teamId }, '_id').lean()
+    const ids = members.map(m => m._id)
+    const queue = await LeaveRequest.find({ user_id: { $in: ids }, status: 'queued' })
+      .populate('user_id','first_name last_name avatar').sort({ queue_position: 1 }).lean()
+    res.json(queue.map(r => ({ ...r, id: r._id, first_name: r.user_id?.first_name, last_name: r.user_id?.last_name })))
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// GET /api/teams/:teamId/calendar
-router.get('/:teamId/calendar', verifyToken, (req, res) => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  const firstDay = `${year}-${(month+1).toString().padStart(2, '0')}-01`
-  const lastDayDate = new Date(year, month+1, 0)
-  const lastDay = lastDayDate.toISOString().split('T')[0]
-
-  const leaves = db.prepare(`
-    SELECT lr.start_date, lr.end_date, lr.type, u.first_name, u.last_name
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    WHERE u.team_id = ? AND lr.status IN ('approved','emergency')
-      AND lr.start_date <= ? AND lr.end_date >= ?
-    ORDER BY lr.start_date
-  `).all([req.params.teamId, lastDay, firstDay])
-
-  res.json(leaves)
+router.get('/:teamId/calendar', verifyToken, async (req, res) => {
+  try {
+    const today = todayStr()
+    const members = await User.find({ team_id: req.params.teamId }, '_id first_name last_name').lean()
+    const ids = members.map(m => m._id)
+    const leaves = await LeaveRequest.find({
+      user_id: { $in: ids },
+      status:  { $in: ['approved','emergency'] },
+    }).populate('user_id','first_name last_name').sort({ start_date: 1 }).lean()
+    res.json(leaves.map(l => ({ ...l, id: l._id, first_name: l.user_id?.first_name, last_name: l.user_id?.last_name })))
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// GET /api/teams/:teamId/analytics
-router.get('/:teamId/analytics', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  const user = db.prepare('SELECT role, team_id FROM users WHERE id = ?').get([req.user.id])
-  if (!['hr', 'admin'].includes(user.role) && user.team_id != req.params.teamId) {
-    return res.status(403).json({ error: 'Forbidden' })
-  }
-
-  // Basic stats
-  const teamSize = db.prepare('SELECT COUNT(*) as count FROM users WHERE team_id = ?').get([req.params.teamId]).count
-  const totalLeaves = db.prepare('SELECT COUNT(*) as count FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE u.team_id = ?').get([req.params.teamId]).count
-  const approvedLeaves = db.prepare('SELECT COUNT(*) as count FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE u.team_id = ? AND lr.status = "approved"').get([req.params.teamId]).count
-  const deniedLeaves = db.prepare('SELECT COUNT(*) as count FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE u.team_id = ? AND lr.status = "denied"').get([req.params.teamId]).count
-  const queuedLeaves = db.prepare('SELECT COUNT(*) as count FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE u.team_id = ? AND lr.status = "queued"').get([req.params.teamId]).count
-  const emergencyLeaves = db.prepare('SELECT COUNT(*) as count FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE u.team_id = ? AND lr.status = "emergency"').get([req.params.teamId]).count
-
-  // Burnout indicators: employees with last leave end >45 days ago OR current workload >80% (but workload is team-level, not per employee)
-  // For demo, just return empty array or few IDs
-  const burnoutEmployees = [] // could compute from leave_requests but complex
-
-  // Overtime not tracked, return empty
-  const overtime = []
-
-  res.json({
-    team_size: teamSize,
-    leaves: {
-      total: totalLeaves,
-      approved: approvedLeaves,
-      denied: deniedLeaves,
-      queued: queuedLeaves,
-      emergency: emergencyLeaves
-    },
-    burnout_indicators: burnoutEmployees,
-    overtime_tracking: overtime
-  })
+router.get('/:teamId/analytics', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const members = await User.find({ team_id: req.params.teamId }, '_id').lean()
+    const ids = members.map(m => m._id)
+    const all = await LeaveRequest.find({ user_id: { $in: ids } }).lean()
+    res.json({
+      team_size: members.length,
+      leaves: {
+        total:     all.length,
+        approved:  all.filter(l => l.status === 'approved').length,
+        denied:    all.filter(l => l.status === 'denied').length,
+        queued:    all.filter(l => l.status === 'queued').length,
+        emergency: all.filter(l => l.status === 'emergency').length,
+      },
+    })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 export default router

@@ -1,34 +1,28 @@
 import express from 'express'
-import db from '../db/database.js'
+import Notification from '../db/models/Notification.js'
 import { verifyToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// GET /api/notifications
-router.get('/', verifyToken, (req, res) => {
-  const notifs = db.prepare(`
-    SELECT * FROM notifications
-    WHERE user_id = ?
-    ORDER BY is_read ASC, created_at DESC
-    LIMIT 10
-  `).all([req.user.id])
-  res.json(notifs)
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const notifs = await Notification.find({ user_id: req.user.id }).sort({ is_read: 1, createdAt: -1 }).limit(20).lean()
+    res.json(notifs.map(n => ({ ...n, id: n._id, created_at: n.createdAt })))
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// PATCH /api/notifications/:id/read
-router.patch('/:id/read', verifyToken, (req, res) => {
-  const notif = db.prepare('SELECT * FROM notifications WHERE id = ? AND user_id = ?').get([req.params.id, req.user.id])
-  if (!notif) {
-    return res.status(404).json({ error: 'Notification not found' })
-  }
-  db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run([req.params.id])
-  res.json({ message: 'Marked as read' })
+router.patch('/:id/read', verifyToken, async (req, res) => {
+  try {
+    await Notification.findOneAndUpdate({ _id: req.params.id, user_id: req.user.id }, { is_read: true })
+    res.json({ message: 'Marked as read' })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
-// PATCH /api/notifications/read-all
-router.patch('/read-all', verifyToken, (req, res) => {
-  db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run([req.user.id])
-  res.json({ message: 'All marked as read' })
+router.patch('/read-all', verifyToken, async (req, res) => {
+  try {
+    await Notification.updateMany({ user_id: req.user.id }, { is_read: true })
+    res.json({ message: 'All marked as read' })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 export default router

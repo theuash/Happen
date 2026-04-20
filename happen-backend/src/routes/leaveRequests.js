@@ -1,231 +1,264 @@
 import express from 'express'
-import db from '../db/database.js'
+import LeaveRequest from '../db/models/LeaveRequest.js'
+import User from '../db/models/User.js'
+import Team from '../db/models/Team.js'
+import Notification from '../db/models/Notification.js'
+import AuditLog from '../db/models/AuditLog.js'
+import Override from '../db/models/Override.js'
 import { verifyToken } from '../middleware/auth.js'
 import { requireRole } from '../middleware/roleGuard.js'
 
 const router = express.Router()
 
-function daysBetween(start, end) {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  const diffTime = endDate - startDate
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+const fmt = (d) => new Date(d).toISOString().split('T')[0]
+const today = () => fmt(new Date())
+const tomorrow = () => fmt(new Date(Date.now() + 86400000))
+const oneWeekAhead = () => fmt(new Date(Date.now() + 7 * 86400000))
+
+// Notify a list of user IDs
+async function notify(userIds, title, message, type = 'info') {
+  const docs = userIds.filter(Boolean).map(uid => ({ user_id: uid, title, message, type }))
+  if (docs.length) await Notification.insertMany(docs)
 }
 
-// GET /api/leave-requests/all - Get all leave requests (for managers/HR/admin)
-router.get('/all', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  const user = db.prepare('SELECT role, team_id FROM users WHERE id = ?').get([req.user.id])
-  
-  let query = `
-    SELECT lr.*, u.first_name, u.last_name, u.email, u.avatar, u.team_id, t.name as team_name
-    FROM leave_requests lr
-    JOIN users u ON lr.user_id = u.id
-    LEFT JOIN teams t ON u.team_id = t.id
-  `
-  
-  // If team_lead, only show their team's requests
-  if (user.role === 'team_lead' && user.team_id) {
-    query += ` WHERE u.team_id = ${user.team_id}`
+// GET /api/leave-requests/all
+router.get('/all', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).lean()
+    const filter = me.role === 'team_lead' && me.team_id ? {} : {}
+
+    let query = LeaveRequest.find(filter)
+      .populate('user_id', 'first_name last_name email avatar team_id role')
+      .sort({ createdAt: -1 })
+
+    const requests = await query.lean()
+
+    // For team_lead: only their team
+    const filtered = me.role === 'team_lead' && me.team_id
+      ? requests.filter(r => r.user_id?.team_id?.toString() === me.team_id.toString())
+      : requests
+
+    res.json(filtered.map(r => ({
+      ...r,
+      id: r._id,
+      first_name: r.user_id?.first_name,
+      last_name:  r.user_id?.last_name,
+      email:      r.user_id?.email,
+      avatar:     r.user_id?.avatar,
+      team_id:    r.user_id?.team_id,
+    })))
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
   }
-  
-  query += ` ORDER BY lr.created_at DESC`
-  
-  const requests = db.prepare(query).all()
-  res.json(requests)
 })
 
 // POST /api/leave-requests
-router.post('/', verifyToken, (req, res) => {
-  const { start_date, end_date, type, reason, is_emergency } = req.body
-  if (!start_date || !end_date || !type) {
-    return res.status(400).json({ error: 'Missing required fields: start_date, end_date, type' })
-  }
-  if (!['annual', 'sick', 'wellness', 'emergency'].includes(type)) {
-    return res.status(400).json({ error: 'Invalid leave type' })
-  }
+// Rules:
+//   annual   → start_date must be >= 1 week from today
+//   sick     → start_date must be today or tomorrow, end_date = start_date (1 day)
+//   wellness → half-day only (today), reason required (sick|wellness)
+//   emergency→ no dates, instant, notifies HR + manager
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { type, start_date, reason, half_day, am_pm } = req.body
 
-  // Get user
-  const user = db.prepare('SELECT team_id FROM users WHERE id = ?').get([req.user.id])
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' })
-  }
-
-  const daysCount = daysBetween(start_date, end_date)
-  let status = 'pending'
-  let proof_deadline = null
-  let queue_position = null
-  let priority_score = 0
-
-  // Emergency handling
-  if (is_emergency || type === 'emergency') {
-    status = 'emergency'
-    // Proof deadline 24 hours from now
-    const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    proof_deadline = deadline.toISOString()
-  } else {
-    // Check team workload
-    const team = db.prepare('SELECT workload_current FROM teams WHERE id = ?').get([user.team_id])
-    const workload = team ? team.workload_current : 0
-    if (workload < 50) {
-      status = 'approved'
-    } else {
-      status = 'queued'
+    if (!['annual','sick','wellness','emergency'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid leave type' })
     }
+
+    const me = await User.findById(req.user.id).lean()
+    if (!me) return res.status(404).json({ error: 'User not found' })
+
+    const team = me.team_id ? await Team.findById(me.team_id).lean() : null
+    const workload = team?.workload_current ?? 0
+
+    // ── EMERGENCY ────────────────────────────────────────────────────────────
+    if (type === 'emergency') {
+      const lr = await LeaveRequest.create({
+        user_id:       me._id,
+        type:          'emergency',
+        start_date:    null,
+        end_date:      null,
+        days_count:    1,
+        status:        'emergency',
+        proof_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        decision_date: new Date(),
+      })
+
+      // Notify HR + manager + team lead
+      const hrUsers = await User.find({ role: 'hr' }, '_id').lean()
+      const manager  = await User.findOne({ role: 'manager' }, '_id').lean()
+      const teamLead = team?.team_lead_id
+
+      const notifyIds = [...hrUsers.map(h => h._id), manager?._id, teamLead].filter(Boolean)
+      await notify(notifyIds,
+        '🚨 Emergency Leave',
+        `${me.first_name} ${me.last_name} has taken emergency leave. Proof required within 24 hours.`,
+        'error'
+      )
+
+      await AuditLog.create({ user_id: me._id, action: 'leave_request.emergency', details: 'Emergency leave taken', ip_address: req.ip })
+
+      return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'emergency', message: 'Emergency leave granted. HR and your manager have been notified.' })
+    }
+
+    // ── WELLNESS (half-day only) ──────────────────────────────────────────────
+    if (type === 'wellness') {
+      if (!reason || !['sick','wellness'].includes(reason)) {
+        return res.status(400).json({ error: 'Reason required for wellness leave: sick or wellness' })
+      }
+      const lr = await LeaveRequest.create({
+        user_id:    me._id,
+        type:       'wellness',
+        start_date: today(),
+        end_date:   today(),
+        days_count: 0.5,
+        half_day:   true,
+        am_pm:      am_pm || 'AM',
+        reason,
+        status:     'approved',
+        decision_date: new Date(),
+      })
+
+      const teamLead = team?.team_lead_id
+      const manager  = await User.findOne({ role: 'manager' }, '_id').lean()
+      await notify([teamLead, manager?._id], 'Wellness Half-Day', `${me.first_name} ${me.last_name} is taking a wellness half-day (${am_pm || 'AM'}).`, 'info')
+
+      return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: 'Wellness half-day approved.' })
+    }
+
+    // ── SICK (today or tomorrow only) ────────────────────────────────────────
+    if (type === 'sick') {
+      const allowed = [today(), tomorrow()]
+      const date = start_date || today()
+      if (!allowed.includes(date)) {
+        return res.status(400).json({ error: 'Sick leave can only be taken for today or tomorrow.' })
+      }
+      const lr = await LeaveRequest.create({
+        user_id:    me._id,
+        type:       'sick',
+        start_date: date,
+        end_date:   date,
+        days_count: 1,
+        reason:     reason || null,
+        status:     'approved',
+        decision_date: new Date(),
+      })
+
+      const teamLead = team?.team_lead_id
+      const manager  = await User.findOne({ role: 'manager' }, '_id').lean()
+      await notify([teamLead, manager?._id], 'Sick Leave', `${me.first_name} ${me.last_name} is on sick leave ${date === today() ? 'today' : 'tomorrow'}.`, 'warning')
+
+      return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: `Sick leave approved for ${date}.` })
+    }
+
+    // ── ANNUAL (min 1 week ahead) ─────────────────────────────────────────────
+    if (type === 'annual') {
+      if (!start_date) return res.status(400).json({ error: 'start_date required for annual leave' })
+      const end_date = req.body.end_date || start_date
+
+      if (start_date < oneWeekAhead()) {
+        return res.status(400).json({ error: 'Annual leave must be requested at least 1 week in advance.' })
+      }
+
+      const days = Math.ceil((new Date(end_date) - new Date(start_date)) / 86400000) + 1
+      let status = workload < 50 ? 'approved' : 'queued'
+      let queue_position = null
+
+      if (status === 'queued') {
+        const count = await LeaveRequest.countDocuments({ status: 'queued' })
+        queue_position = count + 1
+      }
+
+      const lr = await LeaveRequest.create({
+        user_id:        me._id,
+        type:           'annual',
+        start_date,
+        end_date,
+        days_count:     days,
+        reason:         reason || null,
+        status,
+        queue_position,
+        decision_date:  status === 'approved' ? new Date() : null,
+      })
+
+      // Notify team lead + manager
+      const teamLead = team?.team_lead_id
+      const manager  = await User.findOne({ role: 'manager' }, '_id').lean()
+      await notify([teamLead, manager?._id],
+        'Annual Leave Request',
+        `${me.first_name} ${me.last_name} requested annual leave ${start_date} → ${end_date}. Status: ${status}.`,
+        'info'
+      )
+
+      await AuditLog.create({ user_id: me._id, action: 'leave_request.created', details: `Annual leave ${start_date}→${end_date}`, ip_address: req.ip })
+
+      return res.json({
+        request: { ...lr.toObject(), id: lr._id },
+        status,
+        queue_position,
+        message: status === 'approved'
+          ? 'Annual leave approved!'
+          : `Added to queue at position #${queue_position}. Workload is currently high.`,
+      })
+    }
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
   }
-
-  // Insert leave request
-  const info = db.prepare(`
-    INSERT INTO leave_requests (user_id, start_date, end_date, days_count, type, reason, status, proof_deadline, priority_score, queue_position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run([req.user.id, start_date, end_date, daysCount, type, reason || null, status, proof_deadline, priority_score, queue_position])
-
-  // Set decision_date if approved or emergency
-  if (status === 'approved' || status === 'emergency') {
-    db.prepare('UPDATE leave_requests SET decision_date = ? WHERE id = ?').run([new Date().toISOString(), info.lastInsertRowid])
-  }
-
-  // If queued, calculate queue_position based on FCFS
-  if (status === 'queued') {
-    // Use created_at for FIFO: position = count of queued requests with earlier or equal created_at but different id
-    // Get this request's created_at
-    const reqCreated = db.prepare('SELECT created_at FROM leave_requests WHERE id = ?').get([info.lastInsertRowid])
-    const posCount = db.prepare(`
-      SELECT COUNT(*) as cnt FROM leave_requests
-      WHERE status = 'queued' AND (created_at < ? OR (created_at = ? AND id < ?))
-    `).get([reqCreated.created_at, reqCreated.created_at, info.lastInsertRowid])
-    const position = posCount.cnt + 1
-    db.prepare('UPDATE leave_requests SET queue_position = ? WHERE id = ?').run([position, info.lastInsertRowid])
-  }
-
-  // Notify manager/team lead
-  const teamData = db.prepare('SELECT team_lead_id, name FROM teams WHERE id = ?').get([user.team_id])
-  if (teamData && teamData.team_lead_id) {
-    const userReq = db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get([req.user.id])
-    const title = 'New Leave Request'
-    const message = `${userReq.first_name} ${userReq.last_name} submitted a ${type} leave request from ${start_date} to ${end_date}.`
-    db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([teamData.team_lead_id, title, message, 'info'])
-  }
-
-  // Return the created request
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([info.lastInsertRowid])
-  res.json({ request, status, queue_position: status === 'queued' ? request.queue_position : null })
 })
 
 // GET /api/leave-requests/:id
-router.get('/:id', verifyToken, (req, res) => {
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id])
-  if (!request) {
-    return res.status(404).json({ error: 'Leave request not found' })
-  }
-  // Check permission: owner, team_lead/manager/hr/admin for that team
-  const user = db.prepare('SELECT role, team_id FROM users WHERE id = ?').get([req.user.id])
-  const isOwner = request.user_id === req.user.id
-  const isAuthorized = ['team_lead', 'manager', 'hr', 'admin'].includes(user.role)
-  // If not owner and not authorized, check if user is manager/lead of the request's user team
-  let canView = isOwner || isAuthorized
-  if (!canView && ['team_lead', 'manager'].includes(user.role)) {
-    const reqUser = db.prepare('SELECT team_id FROM users WHERE id = ?').get([request.user_id])
-    if (reqUser && reqUser.team_id === user.team_id) {
-      canView = true
-    }
-  }
-  if (!canView) {
-    return res.status(403).json({ error: 'Forbidden' })
-  }
-  res.json(request)
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const lr = await LeaveRequest.findById(req.params.id).populate('user_id','first_name last_name email team_id').lean()
+    if (!lr) return res.status(404).json({ error: 'Not found' })
+    const me = await User.findById(req.user.id).lean()
+    const isOwner = lr.user_id?._id?.toString() === req.user.id
+    const isPriv  = ['team_lead','manager','hr','admin'].includes(me.role)
+    if (!isOwner && !isPriv) return res.status(403).json({ error: 'Forbidden' })
+    res.json({ ...lr, id: lr._id })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 // PATCH /api/leave-requests/:id/approve
-router.patch('/:id/approve', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id])
-  if (!request) {
-    return res.status(404).json({ error: 'Leave request not found' })
-  }
-  // Update status to approved
-  db.prepare('UPDATE leave_requests SET status = ?, decision_date = ? WHERE id = ?').run(['approved', new Date().toISOString(), req.params.id])
-
-  // Notify employee
-  const employee = db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get([request.user_id])
-  const title = 'Leave Request Approved'
-  const message = `Your leave request from ${request.start_date} to ${request.end_date} has been approved.`
-  db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([request.user_id, title, message, 'success'])
-
-  res.json({ message: 'Approved', request: db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id]) })
+router.patch('/:id/approve', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const lr = await LeaveRequest.findByIdAndUpdate(req.params.id, { status: 'approved', decision_date: new Date() }, { new: true })
+    if (!lr) return res.status(404).json({ error: 'Not found' })
+    await notify([lr.user_id], 'Leave Approved ✅', `Your ${lr.type} leave request has been approved.`, 'success')
+    res.json({ message: 'Approved', request: { ...lr.toObject(), id: lr._id } })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 // PATCH /api/leave-requests/:id/deny
-router.patch('/:id/deny', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  const { reason } = req.body
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id])
-  if (!request) {
-    return res.status(404).json({ error: 'Leave request not found' })
-  }
-  // Update status to denied
-  db.prepare('UPDATE leave_requests SET status = ?, decision_date = ?, override_reason = ? WHERE id = ?').run(['denied', new Date().toISOString(), reason || null, req.params.id])
-
-  // Notify employee
-  const employee = db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get([request.user_id])
-  const title = 'Leave Request Denied'
-  const message = `Your leave request from ${request.start_date} to ${request.end_date} has been denied.${reason ? ` Reason: ${reason}` : ''}`
-  db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([request.user_id, title, message, 'error'])
-
-  res.json({ message: 'Denied', request: db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id]) })
+router.patch('/:id/deny', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const { reason } = req.body
+    const lr = await LeaveRequest.findByIdAndUpdate(req.params.id, { status: 'denied', decision_date: new Date(), override_reason: reason || null }, { new: true })
+    if (!lr) return res.status(404).json({ error: 'Not found' })
+    await notify([lr.user_id], 'Leave Denied ❌', `Your ${lr.type} leave was denied.${reason ? ` Reason: ${reason}` : ''}`, 'error')
+    res.json({ message: 'Denied', request: { ...lr.toObject(), id: lr._id } })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 // PATCH /api/leave-requests/:id/override
-router.patch('/:id/override', verifyToken, requireRole('team_lead', 'manager', 'hr', 'admin'), (req, res) => {
-  const { decision, reason } = req.body
-  if (!decision || !['approved', 'denied'].includes(decision)) {
-    return res.status(400).json({ error: 'Invalid decision' })
-  }
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id])
-  if (!request) {
-    return res.status(404).json({ error: 'Leave request not found' })
-  }
-  // Update leave request status
-  db.prepare('UPDATE leave_requests SET status = ?, decision_date = ?, override_reason = ? WHERE id = ?').run([decision, new Date().toISOString(), reason, req.params.id])
+router.patch('/:id/override', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
+  try {
+    const { decision, reason } = req.body
+    if (!['approved','denied'].includes(decision)) return res.status(400).json({ error: 'Invalid decision' })
+    if (!reason?.trim()) return res.status(400).json({ error: 'Reason required for override' })
 
-  // Insert into overrides
-  db.prepare('INSERT INTO overrides (manager_id, request_id, decision, reason, visible_to_employee) VALUES (?, ?, ?, ?, ?)').run([req.user.id, req.params.id, decision, reason, 1])
+    const lr = await LeaveRequest.findByIdAndUpdate(req.params.id, {
+      status: decision, decision_date: new Date(), override_reason: reason, manager_override: true, override_by: req.user.id,
+    }, { new: true })
+    if (!lr) return res.status(404).json({ error: 'Not found' })
 
-  // Log audit
-  db.prepare('INSERT INTO audit_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)').run([req.user.id, 'leave_request.override', `Overrode leave request ${req.params.id} to ${decision}`, req.ip || '127.0.0.1'])
+    await Override.create({ manager_id: req.user.id, request_id: lr._id, decision, reason })
+    await AuditLog.create({ user_id: req.user.id, action: 'leave_request.override', details: `Override ${lr._id} → ${decision}`, ip_address: req.ip })
+    await notify([lr.user_id], 'Leave Override', `Your leave was overridden: ${decision}.${reason ? ` Reason: ${reason}` : ''}`, 'warning')
 
-  // Notify employee and HR
-  const employee = db.prepare('SELECT first_name, last_name, email FROM users WHERE id = ?').get([request.user_id])
-  const empTitle = 'Leave Request Overridden'
-  const empMessage = `Your leave request was overridden by a manager. Decision: ${decision}.${reason ? ` Reason: ${reason}` : ''}`
-  db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([request.user_id, empTitle, empMessage, 'warning'])
-
-  // Notify HR (users with role 'hr')
-  const hrUsers = db.prepare('SELECT id FROM users WHERE role = "hr"').all()
-  for (const hr of hrUsers) {
-    db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([hr.id, 'Override Action', `Manager ${req.user.name} overrode leave request ${req.params.id} to ${decision}`, 'warning'])
-  }
-
-  res.json({ message: 'Override applied', request: db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id]) })
-})
-
-// POST /api/leave-requests/:id/proof
-router.post('/:id/proof', verifyToken, (req, res) => {
-  const { proof_url } = req.body
-  if (!proof_url) {
-    return res.status(400).json({ error: 'proof_url required' })
-  }
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id])
-  if (!request) {
-    return res.status(404).json({ error: 'Leave request not found' })
-  }
-  if (request.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Forbidden' })
-  }
-  // Update proof_submitted and proof_url
-  db.prepare('UPDATE leave_requests SET proof_submitted = 1, proof_url = ? WHERE id = ?').run([proof_url, req.params.id])
-
-  // Check deadline if past?
-  // For simplicity, we won't convert to unpaid; just keep status
-
-  res.json({ message: 'Proof submitted', request: db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([req.params.id]) })
+    res.json({ message: 'Override applied', request: { ...lr.toObject(), id: lr._id } })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
 export default router

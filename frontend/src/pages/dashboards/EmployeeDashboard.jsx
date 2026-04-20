@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/axios';
-import { TrendingUp, TrendingDown, Clock, Video, CalendarDays, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, CalendarDays, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 function EmployeeDashboard() {
   const navigate = useNavigate();
@@ -13,6 +14,21 @@ function EmployeeDashboard() {
   const [activity, setActivity] = useState([]);
   const [teamLeaves, setTeamLeaves] = useState([]);
   const [managerLeaves, setManagerLeaves] = useState([]);
+  const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false);
+  const [emergencyLoading, setEmergencyLoading] = useState(false);
+
+  const handleEmergencyLeave = async () => {
+    setEmergencyLoading(true);
+    try {
+      await api.post('/leave-requests', { type: 'emergency' });
+      toast.success('Emergency leave granted. HR and your manager have been notified.');
+      setShowEmergencyConfirm(false);
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Failed to submit emergency leave');
+    } finally {
+      setEmergencyLoading(false);
+    }
+  };
 
   useEffect(() => { fetchAll(); }, [user?.id]);
 
@@ -121,13 +137,50 @@ function EmployeeDashboard() {
                 <button onClick={() => navigate('/leave/request')} className="w-full py-2.5 rounded-lg font-semibold text-white text-sm hover:-translate-y-0.5 transition-all" style={{ background: 'var(--orange)' }}>
                   Request Leave
                 </button>
-                <button onClick={() => navigate('/leave/request?type=emergency')} className="w-full py-2.5 rounded-lg font-semibold text-sm border-2 hover:-translate-y-0.5 transition-all" style={{ borderColor: '#DC2626', color: '#DC2626' }}>
+                <button
+                  onClick={() => setShowEmergencyConfirm(true)}
+                  className="w-full py-2.5 rounded-lg font-semibold text-sm text-white hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                  style={{ background: '#DC2626' }}
+                >
+                  <AlertTriangle size={16} />
                   Emergency Leave
                 </button>
                 <button onClick={() => navigate('/calendar')} className="w-full py-2.5 rounded-lg font-semibold text-sm border-2 hover:-translate-y-0.5 transition-all" style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}>
                   My Calendar
                 </button>
               </div>
+
+              {/* Emergency Confirmation Modal */}
+              {showEmergencyConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setShowEmergencyConfirm(false)}>
+                  <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#FEF2F2' }}>
+                      <AlertTriangle size={32} style={{ color: '#DC2626' }} />
+                    </div>
+                    <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Emergency Leave</h3>
+                    <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+                      This will immediately notify your <strong>HR team</strong> and <strong>manager</strong>. No dates or description needed. Proof may be required within 24 hours.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowEmergencyConfirm(false)}
+                        className="flex-1 py-3 rounded-lg font-semibold border-2"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleEmergencyLeave}
+                        disabled={emergencyLoading}
+                        className="flex-1 py-3 rounded-lg font-semibold text-white disabled:opacity-50"
+                        style={{ background: '#DC2626' }}
+                      >
+                        {emergencyLoading ? 'Sending…' : 'Confirm'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="shimmer h-8 rounded" />)}</div>
