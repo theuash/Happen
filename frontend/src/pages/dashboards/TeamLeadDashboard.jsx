@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/axios';
-import { CheckCircle, XCircle, AlertTriangle, Users, Clock, TrendingUp } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Users, Clock, TrendingUp, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatApiErrorDetail } from '../../utils/formatError';
 
@@ -25,10 +25,10 @@ function TeamLeadDashboard() {
       if (!user?.team_id) return;
 
       const [requestsRes, queueRes, analyticsRes, workloadRes] = await Promise.all([
-        api.get(`/teams/${user.team_id}/requests`),
-        api.get(`/teams/${user.team_id}/queue`),
-        api.get(`/teams/${user.team_id}/analytics`),
-        api.get(`/teams/${user.team_id}/workload`),
+        api.get(`/teams/${user.team_id?._id || user.team_id}/requests`),
+        api.get(`/teams/${user.team_id?._id || user.team_id}/queue`),
+        api.get(`/teams/${user.team_id?._id || user.team_id}/analytics`),
+        api.get(`/teams/${user.team_id?._id || user.team_id}/workload`),
       ]);
 
       setRequests(requestsRes.data);

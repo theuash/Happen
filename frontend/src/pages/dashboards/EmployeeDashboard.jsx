@@ -45,8 +45,8 @@ function EmployeeDashboard() {
 
       if (user?.team_id) {
         const [wlRes, calRes] = await Promise.all([
-          api.get(`/teams/${user.team_id}/workload`),
-          api.get(`/teams/${user.team_id}/calendar`),
+          api.get(`/teams/${user.team_id?._id || user.team_id}/workload`),
+          api.get(`/teams/${user.team_id?._id || user.team_id}/calendar`),
         ]);
         setWorkload(wlRes.data);
         setTeamLeaves(calRes.data.slice(0, 5));

@@ -1,40 +1,41 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import {
-  LayoutDashboard,
-  Calendar,
-  ClipboardList,
-  Users,
-  BarChart2,
-  Shield,
-  DollarSign,
-  Gift,
-  Heart,
-  Settings,
-  Lock,
-  ChevronLeft,
-  LogOut,
-  Clock,
-  UserCheck,
-  MessageSquare,
+  LayoutDashboard, Calendar, ClipboardList, CheckSquare,
+  Users, BarChart2, Shield, DollarSign, Gift, Heart,
+  Settings, Lock, ChevronLeft, LogOut, Clock, UserCheck,
+  MessageSquare, FolderKanban, Target, BookOpen,
+  CalendarRange, Award, Timer,
 } from 'lucide-react';
 import api from '../lib/axios';
 
 const NAV = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['all'] },
-  { icon: Calendar, label: 'Calendar', path: '/calendar', roles: ['all'] },
-  { icon: ClipboardList, label: 'My Leave Requests', path: '/leave', roles: ['employee', 'team_lead', 'accounting', 'admin'] },
-  { icon: Clock, label: 'Leave Queue', path: '/leave/queue', roles: ['all'] },
-  { icon: UserCheck, label: 'Current Leaves', path: '/current-leaves', roles: ['manager', 'hr', 'admin'] },
-  { icon: MessageSquare, label: 'Messages', path: '/messages', roles: ['all'] },
-  { icon: Users, label: 'My Team', path: '/team', roles: ['team_lead', 'manager'] },
-  { icon: BarChart2, label: 'Analytics', path: '/analytics', roles: ['manager', 'hr', 'accounting'] },
-  { icon: Shield, label: 'HR Portal', path: '/hr', roles: ['hr'] },
-  { icon: DollarSign, label: 'Payroll', path: '/payroll', roles: ['accounting'] },
-  { icon: Gift, label: 'Leave Donation', path: '/donation', roles: ['all'] },
-  { icon: Heart, label: 'Wellness Days', path: '/wellness', roles: ['all'] },
-  { icon: Settings, label: 'Settings', path: '/settings', roles: ['all'] },
-  { icon: Lock, label: 'Admin Panel', path: '/admin', roles: ['admin'] },
+  { icon: LayoutDashboard, label: 'Dashboard',        path: '/dashboard',    roles: ['all'] },
+  { icon: Calendar,        label: 'Calendar',          path: '/calendar',     roles: ['all'] },
+  // Leave
+  { icon: ClipboardList,   label: 'My Leave',          path: '/leave',        roles: ['employee', 'team_lead', 'accounting', 'admin'] },
+  { icon: Clock,           label: 'Leave Queue',       path: '/leave/queue',  roles: ['all'] },
+  { icon: UserCheck,       label: 'Current Leaves',    path: '/current-leaves',roles: ['manager', 'hr', 'admin'] },
+  // Work
+  { icon: CheckSquare,     label: 'My Tasks',          path: '/tasks',        roles: ['employee', 'team_lead'] },
+  { icon: FolderKanban,    label: 'Projects',          path: '/projects',     roles: ['team_lead', 'manager', 'hr', 'admin'] },
+  { icon: Timer,           label: 'Timesheets',        path: '/timesheets',   roles: ['all'] },
+  // People
+  { icon: Target,          label: 'Performance',       path: '/performance',  roles: ['all'] },
+  { icon: Award,           label: 'Kudos',             path: '/kudos',        roles: ['all'] },
+  { icon: MessageSquare,   label: 'Messages',          path: '/messages',     roles: ['all'] },
+  // Resources
+  { icon: CalendarRange,   label: 'Resources',         path: '/resources',    roles: ['all'] },
+  { icon: BookOpen,        label: 'Wiki',              path: '/wiki',         roles: ['all'] },
+  // Management
+  { icon: Users,           label: 'My Team',           path: '/team',         roles: ['team_lead', 'manager'] },
+  { icon: BarChart2,       label: 'Analytics',         path: '/analytics',    roles: ['manager', 'hr', 'accounting'] },
+  { icon: Shield,          label: 'HR Portal',         path: '/hr',           roles: ['hr'] },
+  { icon: DollarSign,      label: 'Payroll',           path: '/payroll',      roles: ['accounting'] },
+  { icon: Gift,            label: 'Leave Donation',    path: '/donation',     roles: ['all'] },
+  { icon: Heart,           label: 'Wellness Days',     path: '/wellness',     roles: ['all'] },
+  { icon: Settings,        label: 'Settings',          path: '/settings',     roles: ['all'] },
+  { icon: Lock,            label: 'Admin Panel',       path: '/admin',        roles: ['admin'] },
 ];
 
 function Sidebar({ collapsed, onToggleCollapse }) {

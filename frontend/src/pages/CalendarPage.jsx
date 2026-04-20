@@ -26,7 +26,7 @@ function CalendarPage() {
         const res = await api.get(`/company/calendar?month=${currentMonth}&year=${currentYear}`);
         setCalendarData(res.data);
       } else if (user?.team_id) {
-        const res = await api.get(`/teams/${user.team_id}/calendar`);
+        const res = await api.get(`/teams/${user.team_id?._id || user.team_id}/calendar`);
         setCalendarData(res.data);
       }
     } catch (error) {

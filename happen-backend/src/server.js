@@ -20,6 +20,13 @@ import queueRoutes         from './routes/queue.js'
 import currentLeavesRoutes from './routes/currentLeaves.js'
 import messagesRoutes      from './routes/messages.js'
 import meetingsRoutes      from './routes/meetings.js'
+import projectsRoutes      from './routes/projects.js'
+import myTasksRoutes      from './routes/myTasks.js'
+import okrRoutes          from './routes/okrs.js'
+import wikiRoutes         from './routes/wiki.js'
+import resourceRoutes     from './routes/resources.js'
+import kudosRoutes        from './routes/kudos.js'
+import timeEntryRoutes    from './routes/timeEntries.js'
 
 // Stub routes not yet migrated
 import express2 from 'express'
@@ -118,6 +125,13 @@ async function start() {
   app.use('/api/current-leaves', currentLeavesRoutes)
   app.use('/api/messages',       messagesRoutes)
   app.use('/api/meetings',       meetingsRoutes)
+  app.use('/api/projects',       projectsRoutes)
+  app.use('/api/my-tasks',       myTasksRoutes)
+  app.use('/api/okrs',           okrRoutes)
+  app.use('/api/wiki',           wikiRoutes)
+  app.use('/api/resources',      resourceRoutes)
+  app.use('/api/kudos',          kudosRoutes)
+  app.use('/api/time-entries',   timeEntryRoutes)
   app.use('/api/hr',             hrRoutes)
   app.use('/api/accounting',     accountingRoutes)
   app.use('/api/admin',          adminRoutes)

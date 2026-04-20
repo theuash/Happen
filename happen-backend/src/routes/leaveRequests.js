@@ -7,6 +7,7 @@ import AuditLog from '../db/models/AuditLog.js'
 import Override from '../db/models/Override.js'
 import { verifyToken } from '../middleware/auth.js'
 import { requireRole } from '../middleware/roleGuard.js'
+import { getEmployeeTaskStats } from './projects.js'
 
 const router = express.Router()
 
@@ -149,19 +150,41 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'emergency', message: 'Emergency leave granted. HR and your manager have been notified.' })
     }
 
-    // ── WELLNESS
+    // ── WELLNESS (half-day) — auto-approved only if all today's tasks are done
     if (type === 'wellness') {
       if (!reason || !['sick','wellness'].includes(reason)) {
         return res.status(400).json({ error: 'Reason required: sick or wellness' })
       }
+
+      // Check task completion for today
+      let allTodayDone = true
+      let todayTasksDue = 0
+      if (me.team_id) {
+        const stats = await getEmployeeTaskStats(me._id, me.team_id)
+        allTodayDone  = stats.allTodayDone
+        todayTasksDue = stats.todayTasksDue
+      }
+
+      if (!allTodayDone) {
+        return res.status(403).json({
+          error: 'Half-day leave denied',
+          detail: `You have ${todayTasksDue} task(s) due today that are not yet completed. Complete all today's tasks first to be eligible for a half-day.`,
+          tasks_pending: todayTasksDue,
+        })
+      }
+
       const lr = await LeaveRequest.create({
         user_id: me._id, type: 'wellness',
         start_date: todayStr(), end_date: todayStr(), days_count: 0.5,
         half_day: true, am_pm: am_pm || 'AM', reason,
         status: 'approved', decision_date: new Date(),
       })
-      await notifyHRManager('Wellness Half-Day', `${me.first_name} ${me.last_name} is taking a wellness half-day (${am_pm || 'AM'}).`, 'info', me._id)
-      return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: 'Wellness half-day approved.' })
+      await notifyHRManager('Wellness Half-Day ✅', `${me.first_name} ${me.last_name} is taking a wellness half-day (${am_pm || 'AM'}). All today's tasks were completed.`, 'info', me._id)
+      return res.json({
+        request: { ...lr.toObject(), id: lr._id },
+        status: 'approved',
+        message: 'Half-day approved! All your tasks for today were completed.',
+      })
     }
 
     // ── SICK
@@ -180,13 +203,52 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({ request: { ...lr.toObject(), id: lr._id }, status: 'approved', message: `Sick leave approved for ${date}.` })
     }
 
-    // ── ANNUAL
+    // ── ANNUAL — smart grant based on workload + task status
     if (type === 'annual') {
       if (!start_date) return res.status(400).json({ error: 'start_date required for annual leave' })
       const end_date = req.body.end_date || start_date
       if (start_date < oneWeekAhead()) {
         return res.status(400).json({ error: 'Annual leave must be requested at least 1 week in advance.' })
       }
+
+      // Get task stats for this employee
+      let taskStats = { completionRate: 100, overdueHighPriority: 0, isInsignificant: false }
+      if (me.team_id) {
+        taskStats = await getEmployeeTaskStats(me._id, me.team_id)
+      }
+
+      // ── DENIAL conditions
+      // 1. Team workload is critical (≥ 80%)
+      if (workload >= 80) {
+        await notifyHRManager(
+          'Leave Request Denied (High Workload)',
+          `${me.first_name} ${me.last_name}'s annual leave request was auto-denied. Team workload is ${workload}%.`,
+          'warning', me._id
+        )
+        return res.status(403).json({
+          error: 'Leave denied',
+          detail: `Your team's workload is currently ${workload}% (critical). Annual leave cannot be approved until workload drops below 80%.`,
+          workload,
+          status: 'denied',
+        })
+      }
+
+      // 2. Employee has overdue high-priority tasks
+      if (taskStats.overdueHighPriority > 0) {
+        await notifyHRManager(
+          'Leave Request Denied (Overdue Tasks)',
+          `${me.first_name} ${me.last_name}'s leave was denied — ${taskStats.overdueHighPriority} overdue high-priority task(s).`,
+          'warning', me._id
+        )
+        return res.status(403).json({
+          error: 'Leave denied',
+          detail: `You have ${taskStats.overdueHighPriority} overdue high-priority task(s). Complete them before requesting leave.`,
+          overdue_tasks: taskStats.overdueHighPriority,
+          status: 'denied',
+        })
+      }
+
+      // ── QUEUE condition: workload 50-79%
       const days = Math.ceil((new Date(end_date) - new Date(start_date)) / 86400000) + 1
       let status = workload < 50 ? 'approved' : 'queued'
       let queue_position = null
@@ -202,19 +264,29 @@ router.post('/', verifyToken, async (req, res) => {
         decision_date: status === 'approved' ? new Date() : null,
       })
 
-      await notifyHRManager(
-        'New Annual Leave Request',
-        `${me.first_name} ${me.last_name} requested annual leave ${start_date} → ${end_date}. Status: ${status}${status === 'queued' ? ` (queue #${queue_position})` : ''}.`,
-        'info',
-        me._id
-      )
-      await AuditLog.create({ user_id: me._id, action: 'leave_request.created', details: `Annual leave ${start_date}→${end_date}`, ip_address: req.ip })
+      // Flag insignificant employee to manager
+      if (taskStats.isInsignificant) {
+        await notifyHRManager(
+          '⚠️ Low-Performer Leave Request',
+          `${me.first_name} ${me.last_name} requested leave but has only ${taskStats.completionRate}% task completion rate (${taskStats.completedByUser}/${taskStats.totalAssigned} tasks done).`,
+          'warning', me._id
+        )
+      } else {
+        await notifyHRManager(
+          'New Annual Leave Request',
+          `${me.first_name} ${me.last_name} requested annual leave ${start_date} → ${end_date}. Status: ${status}. Task completion: ${taskStats.completionRate}%.`,
+          'info', me._id
+        )
+      }
+
+      await AuditLog.create({ user_id: me._id, action: 'leave_request.created', details: `Annual leave ${start_date}→${end_date} | workload:${workload}% | tasks:${taskStats.completionRate}%`, ip_address: req.ip })
 
       return res.json({
         request: { ...lr.toObject(), id: lr._id }, status, queue_position,
+        task_stats: taskStats,
         message: status === 'approved'
-          ? 'Annual leave approved!'
-          : `Added to queue at position #${queue_position}. Workload is currently high.`,
+          ? `Annual leave approved! Team workload is ${workload}% and your task completion is ${taskStats.completionRate}%.`
+          : `Added to queue at position #${queue_position}. Team workload is ${workload}% (medium). You'll be approved when it drops.`,
       })
     }
   } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }) }

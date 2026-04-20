@@ -30,7 +30,9 @@ router.post('/login', async (req, res) => {
     await AuditLog.create({ user_id: user._id, action: 'login', details: 'User logged in', ip_address: req.ip })
 
     const { password_hash, password_plain, __v, ...userData } = user.toObject()
-    res.json({ token, user: { ...userData, id: userData._id } })
+    // Normalize team_id to plain string so frontend template literals work correctly
+    const teamId = userData.team_id?._id?.toString() || userData.team_id?.toString() || null
+    res.json({ token, user: { ...userData, id: userData._id, team_id: teamId } })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'Server error' })

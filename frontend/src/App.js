@@ -1,75 +1,89 @@
 import './index.css';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import ToastProvider from './components/ToastProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './layouts/AppLayout';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
-import CalendarPage from './pages/CalendarPage';
-import LeavePage from './pages/LeavePage';
-import LeaveRequestPage from './pages/LeaveRequestPage';
-import AllLeavesPage from './pages/AllLeavesPage';
-import LeavesQueuePage from './pages/LeavesQueuePage';
-import CurrentLeavesPage from './pages/CurrentLeavesPage';
-import MessagesPage from './pages/MessagesPage';
-import TeamPage from './pages/TeamPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import HRPage from './pages/HRPage';
-import PayrollPage from './pages/PayrollPage';
-import DonationPage from './pages/DonationPage';
-import WellnessPage from './pages/WellnessPage';
-import SettingsPage from './pages/SettingsPage';
-import AdminUsersPage from './pages/admin/AdminUsersPage';
-import AdminPasswordsPage from './pages/admin/AdminPasswordsPage';
-import AdminAuditPage from './pages/admin/AdminAuditPage';
-import AdminImpersonatePage from './pages/admin/AdminImpersonatePage';
 import { useAuthStore } from './store/authStore';
+
+const HomePage          = lazy(() => import('./pages/HomePage'));
+const CalendarPage      = lazy(() => import('./pages/CalendarPage'));
+const LeavePage         = lazy(() => import('./pages/LeavePage'));
+const LeaveRequestPage  = lazy(() => import('./pages/LeaveRequestPage'));
+const LeavesQueuePage   = lazy(() => import('./pages/LeavesQueuePage'));
+const CurrentLeavesPage = lazy(() => import('./pages/CurrentLeavesPage'));
+const MessagesPage      = lazy(() => import('./pages/MessagesPage'));
+const ProjectsPage      = lazy(() => import('./pages/ProjectsPage'));
+const TasksPage         = lazy(() => import('./pages/TasksPage'));
+const PerformancePage   = lazy(() => import('./pages/PerformancePage'));
+const WikiPage          = lazy(() => import('./pages/WikiPage'));
+const ResourcesPage     = lazy(() => import('./pages/ResourcesPage'));
+const KudosPage         = lazy(() => import('./pages/KudosPage'));
+const TimesheetsPage    = lazy(() => import('./pages/TimesheetsPage'));
+const TeamPage          = lazy(() => import('./pages/TeamPage'));
+const AnalyticsPage     = lazy(() => import('./pages/AnalyticsPage'));
+const HRPage            = lazy(() => import('./pages/HRPage'));
+const PayrollPage       = lazy(() => import('./pages/PayrollPage'));
+const DonationPage      = lazy(() => import('./pages/DonationPage'));
+const WellnessPage      = lazy(() => import('./pages/WellnessPage'));
+const SettingsPage      = lazy(() => import('./pages/SettingsPage'));
+const AdminUsersPage    = lazy(() => import('./pages/admin/AdminUsersPage'));
+const AdminPasswordsPage= lazy(() => import('./pages/admin/AdminPasswordsPage'));
+const AdminAuditPage    = lazy(() => import('./pages/admin/AdminAuditPage'));
+const AdminImpersonatePage=lazy(()=> import('./pages/admin/AdminImpersonatePage'));
+
+const Spin = () => (
+  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
+    <div style={{ width:40, height:40, border:'3px solid #F4631E', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>
+);
 
 function App() {
   const user = useAuthStore((state) => state.user);
-
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
-            
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/leave" element={<LeavePage />} />
-              <Route path="/leave/request" element={<LeaveRequestPage />} />
-              <Route path="/leave/queue" element={<LeavesQueuePage />} />
-              <Route path="/current-leaves" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'admin']}><CurrentLeavesPage /></ProtectedRoute>} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/leave/all" element={<ProtectedRoute allowedRoles={['team_lead', 'manager', 'hr', 'admin']}><AllLeavesPage /></ProtectedRoute>} />
-              <Route path="/team" element={<ProtectedRoute allowedRoles={['team_lead', 'manager']}><TeamPage /></ProtectedRoute>} />
-              <Route path="/analytics" element={<ProtectedRoute allowedRoles={['manager', 'hr', 'accounting']}><AnalyticsPage /></ProtectedRoute>} />
-              <Route path="/hr" element={<ProtectedRoute allowedRoles={['hr']}><HRPage /></ProtectedRoute>} />
-              <Route path="/payroll" element={<ProtectedRoute allowedRoles={['accounting']}><PayrollPage /></ProtectedRoute>} />
-              <Route path="/donation" element={<DonationPage />} />
-              <Route path="/wellness" element={<WellnessPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />
-              <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
-              <Route path="/admin/passwords" element={<ProtectedRoute allowedRoles={['admin']}><AdminPasswordsPage /></ProtectedRoute>} />
-              <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['admin']}><AdminAuditPage /></ProtectedRoute>} />
-              <Route path="/admin/impersonate" element={<ProtectedRoute allowedRoles={['admin']}><AdminImpersonatePage /></ProtectedRoute>} />
-            </Route>
-
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+          <Suspense fallback={<Spin />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/dashboard"        element={<Dashboard />} />
+                <Route path="/calendar"         element={<CalendarPage />} />
+                <Route path="/leave"            element={<LeavePage />} />
+                <Route path="/leave/request"    element={<LeaveRequestPage />} />
+                <Route path="/leave/queue"      element={<LeavesQueuePage />} />
+                <Route path="/tasks"            element={<TasksPage />} />
+                <Route path="/performance"     element={<PerformancePage />} />
+                <Route path="/wiki"            element={<WikiPage />} />
+                <Route path="/resources"       element={<ResourcesPage />} />
+                <Route path="/kudos"           element={<KudosPage />} />
+                <Route path="/timesheets"      element={<TimesheetsPage />} />
+                <Route path="/messages"         element={<MessagesPage />} />
+                <Route path="/current-leaves"   element={<ProtectedRoute allowedRoles={['manager','hr','admin']}><CurrentLeavesPage /></ProtectedRoute>} />
+                <Route path="/projects"         element={<ProtectedRoute allowedRoles={['team_lead','manager','hr','admin']}><ProjectsPage /></ProtectedRoute>} />
+                <Route path="/team"             element={<ProtectedRoute allowedRoles={['team_lead','manager']}><TeamPage /></ProtectedRoute>} />
+                <Route path="/analytics"        element={<ProtectedRoute allowedRoles={['manager','hr','accounting']}><AnalyticsPage /></ProtectedRoute>} />
+                <Route path="/hr"               element={<ProtectedRoute allowedRoles={['hr']}><HRPage /></ProtectedRoute>} />
+                <Route path="/payroll"          element={<ProtectedRoute allowedRoles={['accounting']}><PayrollPage /></ProtectedRoute>} />
+                <Route path="/donation"         element={<DonationPage />} />
+                <Route path="/wellness"         element={<WellnessPage />} />
+                <Route path="/settings"         element={<SettingsPage />} />
+                <Route path="/admin"            element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />
+                <Route path="/admin/users"      element={<ProtectedRoute allowedRoles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
+                <Route path="/admin/passwords"  element={<ProtectedRoute allowedRoles={['admin']}><AdminPasswordsPage /></ProtectedRoute>} />
+                <Route path="/admin/audit"      element={<ProtectedRoute allowedRoles={['admin']}><AdminAuditPage /></ProtectedRoute>} />
+                <Route path="/admin/impersonate"element={<ProtectedRoute allowedRoles={['admin']}><AdminImpersonatePage /></ProtectedRoute>} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </ToastProvider>
     </QueryClientProvider>

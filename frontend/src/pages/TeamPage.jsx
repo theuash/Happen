@@ -17,7 +17,7 @@ function TeamPage() {
 
   const fetchCalendar = async () => {
     try {
-      const res = await api.get(`/teams/${user.team_id}/calendar`);
+      const res = await api.get(`/teams/${user.team_id?._id || user.team_id}/calendar`);
       setCalendarData(res.data);
     } catch (error) {
       console.error('Error fetching team calendar:', error);

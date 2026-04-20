@@ -7,37 +7,45 @@ import api from '../lib/axios';
 // All demo users grouped by role — matches seed.js exactly
 const DEMO_USERS = [
   { role: 'admin',      label: 'Admin',       color: '#7C3AED', users: [
-    { name: 'Alex Rivera',    email: 'admin@happen.com',              password: 'Admin2026!',      avatar: 'AR' },
+    { name: 'Alex Rivera',     email: 'admin@happen.com',               password: 'Admin2026!',       avatar: 'AR' },
   ]},
   { role: 'manager',    label: 'Manager',     color: '#F59E0B', users: [
-    { name: 'Michael Brown',  email: 'michael@creativesolutions.com', password: 'MichaelMgr456!',  avatar: 'MB' },
-    { name: 'Olivia Martinez',email: 'olivia@creativesolutions.com',  password: 'OliviaDr789!',    avatar: 'OM' },
-    { name: 'Thomas Wright',  email: 'thomas@creativesolutions.com',  password: 'ThomasTD456!',    avatar: 'TW' },
+    { name: 'Michael Brown',   email: 'michael@creativesolutions.com',  password: 'MichaelMgr456!',   avatar: 'MB' },
   ]},
   { role: 'hr',         label: 'HR',          color: '#EC4899', users: [
-    { name: 'Lisa Wong',      email: 'lisa@creativesolutions.com',    password: 'LisaHR789!',      avatar: 'LW' },
-    { name: 'Kevin Park',     email: 'kevin@creativesolutions.com',   password: 'KevinHR123!',     avatar: 'KP' },
+    { name: 'Lisa Wong',       email: 'lisa@creativesolutions.com',     password: 'LisaHR789!',       avatar: 'LW' },
+    { name: 'Kevin Park',      email: 'kevin@creativesolutions.com',    password: 'KevinHR123!',      avatar: 'KP' },
   ]},
   { role: 'team_lead',  label: 'Team Lead',   color: '#0EA5E9', users: [
-    { name: 'Sarah Chen',     email: 'sarah@creativesolutions.com',   password: 'SarahLead123!',   avatar: 'SC' },
-    { name: 'Marcus Taylor',  email: 'marcus@creativesolutions.com',  password: 'MarcusLead456!',  avatar: 'MT' },
-    { name: 'Jessica Martinez',email:'jessica@creativesolutions.com', password: 'JessicaLead789!', avatar: 'JM' },
-    { name: 'David Kim',      email: 'david.k@creativesolutions.com', password: 'DavidLead123!',   avatar: 'DK' },
+    { name: 'Sarah Chen',      email: 'sarah@creativesolutions.com',    password: 'SarahLead123!',    avatar: 'SC', team: 'Design' },
+    { name: 'Marcus Taylor',   email: 'marcus@creativesolutions.com',   password: 'MarcusLead456!',   avatar: 'MT', team: 'Development' },
+    { name: 'Jessica Martinez',email: 'jessica@creativesolutions.com',  password: 'JessicaLead789!',  avatar: 'JM', team: 'Marketing' },
+    { name: 'David Kim',       email: 'david.k@creativesolutions.com',  password: 'DavidLead123!',    avatar: 'DK', team: 'Client Success' },
   ]},
   { role: 'accounting', label: 'Accounting',  color: '#22C55E', users: [
-    { name: 'Robert Chen',    email: 'robert@creativesolutions.com',  password: 'RobertAcct789!',  avatar: 'RC' },
-    { name: 'Maria Garcia',   email: 'maria@creativesolutions.com',   password: 'MariaAcct456!',   avatar: 'MG' },
+    { name: 'Robert Chen',     email: 'robert@creativesolutions.com',   password: 'RobertAcct789!',   avatar: 'RC' },
+    { name: 'Maria Garcia',    email: 'maria@creativesolutions.com',    password: 'MariaAcct456!',    avatar: 'MG' },
   ]},
   { role: 'employee',   label: 'Employee',    color: '#F4631E', users: [
-    { name: 'James Wu',       email: 'james.wu@creativesolutions.com',password: 'JamesWu123!',     avatar: 'JW' },
-    { name: 'Diana Prince',   email: 'diana@creativesolutions.com',   password: 'DianaOM123!',     avatar: 'DP' },
-    { name: 'Elena Rodriguez',email: 'elena@creativesolutions.com',   password: 'ElenaRod456!',    avatar: 'ER' },
-    { name: 'Omar Hassan',    email: 'omar@creativesolutions.com',    password: 'OmarHas789!',     avatar: 'OH' },
-    { name: 'Priya Kapoor',   email: 'priya@creativesolutions.com',   password: 'PriyaKap123!',    avatar: 'PK' },
-    { name: 'Andre Johnson',  email: 'andre@creativesolutions.com',   password: 'AndreDev789!',    avatar: 'AJ' },
-    { name: 'Yuki Tanaka',    email: 'yuki@creativesolutions.com',    password: 'YukiTan123!',     avatar: 'YT' },
-    { name: 'Ryan O\'Connor', email: 'ryan@creativesolutions.com',    password: 'RyanOC123!',      avatar: 'RO' },
-    { name: 'Sofia Reyes',    email: 'sofia@creativesolutions.com',   password: 'SofiaRey456!',    avatar: 'SR' },
+    // Design team
+    { name: 'James Wu',        email: 'james.wu@creativesolutions.com', password: 'JamesWu123!',      avatar: 'JW', team: 'Design' },
+    { name: 'Elena Rodriguez', email: 'elena@creativesolutions.com',    password: 'ElenaRod456!',     avatar: 'ER', team: 'Design' },
+    { name: 'Omar Hassan',     email: 'omar@creativesolutions.com',     password: 'OmarHas789!',      avatar: 'OH', team: 'Design' },
+    { name: 'Priya Kapoor',    email: 'priya@creativesolutions.com',    password: 'PriyaKap123!',     avatar: 'PK', team: 'Design' },
+    // Development team
+    { name: 'Andre Johnson',   email: 'andre@creativesolutions.com',    password: 'AndreDev789!',     avatar: 'AJ', team: 'Development' },
+    { name: 'Yuki Tanaka',     email: 'yuki@creativesolutions.com',     password: 'YukiTan123!',      avatar: 'YT', team: 'Development' },
+    { name: 'Lena Fischer',    email: 'lena@creativesolutions.com',     password: 'LenaFis456!',      avatar: 'LF', team: 'Development' },
+    { name: 'David Okafor',    email: 'david.o@creativesolutions.com',  password: 'DavidOk789!',      avatar: 'DO', team: 'Development' },
+    // Marketing team
+    { name: "Ryan O'Connor",   email: 'ryan@creativesolutions.com',     password: 'RyanOC123!',       avatar: 'RO', team: 'Marketing' },
+    { name: 'Nadia Petrova',   email: 'nadia@creativesolutions.com',    password: 'NadiaPet456!',     avatar: 'NP', team: 'Marketing' },
+    { name: 'Wei Zhang',       email: 'wei@creativesolutions.com',      password: 'WeiZhang789!',     avatar: 'WZ', team: 'Marketing' },
+    // Client Success team
+    { name: 'Sofia Reyes',     email: 'sofia@creativesolutions.com',    password: 'SofiaRey456!',     avatar: 'SR', team: 'Client Success' },
+    { name: 'Ahmed Al-Rashid', email: 'ahmed@creativesolutions.com',    password: 'AhmedAl789!',      avatar: 'AA', team: 'Client Success' },
+    { name: 'Emma Sullivan',   email: 'emma@creativesolutions.com',     password: 'EmmaSul123!',      avatar: 'ES', team: 'Client Success' },
+    { name: 'Carlos Mendez',   email: 'carlos@creativesolutions.com',   password: 'CarlosMen456!',    avatar: 'CM', team: 'Client Success' },
   ]},
 ];
 
@@ -89,10 +97,10 @@ function TopBar({ title }) {
         password: demoUser.password,
       });
       login(data.user, data.token);
-      navigate('/dashboard');
+      // Force full navigation to dashboard to reset all component state
+      window.location.href = '/dashboard';
     } catch (e) {
       console.error('Switch failed', e);
-    } finally {
       setSwitching(false);
     }
   };
@@ -293,6 +301,7 @@ function TopBar({ title }) {
                             </div>
                             <span className="text-sm font-medium flex-1" style={{ color: 'var(--text-primary)' }}>
                               {u.name}
+                              {u.team && <span className="text-xs ml-1" style={{ color: 'var(--text-secondary)' }}>· {u.team}</span>}
                             </span>
                             {isCurrent && (
                               <span className="text-xs px-1.5 py-0.5 rounded font-semibold text-white" style={{ background: group.color }}>

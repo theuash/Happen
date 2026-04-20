@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../lib/axios';
-import { TrendingUp, Users, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Users, AlertTriangle, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import ScheduleLeavePanel from '../../components/ScheduleLeavePanel';
 
@@ -10,6 +10,7 @@ function ManagerDashboard() {
   const [teams, setTeams] = useState([]);
   const [burnoutRisk, setBurnoutRisk] = useState([]);
   const [overrides, setOverrides] = useState([]);
+  const [insignificant, setInsignificant] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,15 +20,17 @@ function ManagerDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workloadRes, burnoutRes, overridesRes] = await Promise.all([
+      const [workloadRes, burnoutRes, overridesRes, insignificantRes] = await Promise.all([
         api.get('/company/workload'),
         api.get('/company/burnout-risk'),
         api.get('/company/overrides'),
+        api.get('/projects/insignificant-employees'),
       ]);
 
       setTeams(workloadRes.data);
       setBurnoutRisk(burnoutRes.data);
       setOverrides(overridesRes.data);
+      setInsignificant(insignificantRes.data);
     } catch (error) {
       console.error('Error fetching manager data:', error);
       toast.error('Failed to load dashboard data');
@@ -139,6 +142,51 @@ function ManagerDashboard() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Low Task Completion — Insignificant Employees */}
+      {insignificant.length > 0 && (
+        <div className="card border-l-4" style={{ borderLeftColor: '#DC2626', background: '#FEF2F2' }}>
+          <div className="flex items-start gap-4">
+            <TrendingDown size={32} style={{ color: '#DC2626', flexShrink: 0 }} />
+            <div className="flex-1">
+              <h3 className="text-xl font-bold mb-1" style={{ color: '#DC2626' }}>
+                ⚠️ Low Task Completion Alert
+              </h3>
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                {insignificant.length} employee{insignificant.length !== 1 ? 's have' : ' has'} completed less than 30% of assigned tasks. Review their workload and performance.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {insignificant.map((emp) => (
+                  <div key={emp.id} className="bg-white p-4 rounded-xl border-l-4" style={{ borderLeftColor: '#DC2626' }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: '#DC2626' }}>
+                          {emp.first_name?.charAt(0)}{emp.last_name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{emp.first_name} {emp.last_name}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{emp.team_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold" style={{ color: '#DC2626' }}>{emp.completionRate}%</p>
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>completion</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div className="h-2 rounded-full" style={{ width: `${emp.completionRate}%`, background: '#DC2626' }} />
+                    </div>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {emp.completedByUser}/{emp.totalAssigned} tasks done
+                      {emp.overdueHighPriority > 0 && ` · ${emp.overdueHighPriority} overdue high-priority`}
+                    </p>
                   </div>
                 ))}
               </div>

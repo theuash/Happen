@@ -46,7 +46,14 @@ function LeaveRequestPage() {
       setStep('result');
       toast.success('Leave request submitted!');
     } catch (err) {
-      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.response?.data?.error || err.message);
+      const data = err.response?.data;
+      // Show smart denial reason clearly
+      if (err.response?.status === 403 && data?.detail) {
+        setResult({ status: 'denied', message: data.detail, workload: data.workload, overdue_tasks: data.overdue_tasks, tasks_pending: data.tasks_pending });
+        setStep('result');
+      } else {
+        toast.error(data?.error || data?.detail || err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -326,31 +333,47 @@ function LeaveRequestPage() {
     const isApproved = result.status === 'approved';
     const isQueued   = result.status === 'queued';
     const isEmergency= result.status === 'emergency';
+    const isDenied   = result.status === 'denied';
 
     return (
       <div className="max-w-2xl mx-auto">
         <div className="card text-center space-y-4 animate-bounce-in">
           <div
             className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl"
-            style={{ background: isApproved || isEmergency ? 'var(--success)' : isQueued ? 'var(--warning)' : 'var(--orange)' }}
+            style={{ background: isDenied ? '#DC2626' : isApproved || isEmergency ? 'var(--success)' : 'var(--warning)' }}
           >
-            {isApproved || isEmergency ? '✓' : isQueued ? `#${result.queue_position}` : '⏱'}
+            {isDenied ? '✕' : isApproved || isEmergency ? '✓' : `#${result.queue_position}`}
           </div>
 
           <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {isApproved && 'Leave Approved!'}
             {isQueued   && 'Added to Queue'}
             {isEmergency && 'Emergency Leave Granted'}
+            {isDenied   && 'Leave Request Denied'}
           </h2>
 
           <p style={{ color: 'var(--text-secondary)' }}>{result.message}</p>
+
+          {isDenied && (
+            <div className="p-4 rounded-xl text-left space-y-2" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
+              {result.workload !== undefined && (
+                <p className="text-sm"><span className="font-semibold">Team workload:</span> {result.workload}% (must be below 80%)</p>
+              )}
+              {result.overdue_tasks > 0 && (
+                <p className="text-sm"><span className="font-semibold">Overdue high-priority tasks:</span> {result.overdue_tasks} (must be 0)</p>
+              )}
+              {result.tasks_pending > 0 && (
+                <p className="text-sm"><span className="font-semibold">Today's tasks pending:</span> {result.tasks_pending} (complete all to take half-day)</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 justify-center pt-2">
             <button onClick={() => navigate('/leave')} className="px-6 py-2.5 rounded-lg font-semibold text-white" style={{ background: 'var(--orange)' }}>
               View My Requests
             </button>
             <button onClick={reset} className="px-6 py-2.5 rounded-lg font-semibold border-2" style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}>
-              New Request
+              {isDenied ? 'Try Again' : 'New Request'}
             </button>
           </div>
         </div>

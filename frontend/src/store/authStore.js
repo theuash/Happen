@@ -5,7 +5,8 @@ const storedUser = (() => {
   try {
     const u = JSON.parse(localStorage.getItem('happen_user'));
     // Old bug stored the full { token, user } object — detect and discard
-    if (u && (u.token !== undefined || !u.role)) {
+    // Also discard if team_id is an object (should be string)
+    if (u && (u.token !== undefined || !u.role || (u.team_id && typeof u.team_id === 'object'))) {
       localStorage.removeItem('happen_user');
       localStorage.removeItem('happen_token');
       return null;
