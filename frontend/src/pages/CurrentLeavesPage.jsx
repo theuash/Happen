@@ -4,7 +4,7 @@ import api from '../lib/axios';
 import { toast } from 'sonner';
 import {
   X, Mail, Users, AlertTriangle,
-  CheckCircle, Clock, Heart, Stethoscope, MessageSquare,
+  CheckCircle, Clock, Heart, Stethoscope, MessageSquare, Calendar,
 } from 'lucide-react';
 
 const TYPE_CONFIG = {

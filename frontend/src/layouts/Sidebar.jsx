@@ -28,11 +28,11 @@ const NAV = [
   { icon: CalendarRange,   label: 'Resources',         path: '/resources',    roles: ['all'] },
   { icon: BookOpen,        label: 'Wiki',              path: '/wiki',         roles: ['all'] },
   // Management
-  { icon: Users,           label: 'My Team',           path: '/team',         roles: ['team_lead', 'manager'] },
+  { icon: Users,           label: 'My Team',           path: '/team',         roles: ['team_lead'] },
   { icon: BarChart2,       label: 'Analytics',         path: '/analytics',    roles: ['manager', 'hr', 'accounting'] },
   { icon: Shield,          label: 'HR Portal',         path: '/hr',           roles: ['hr'] },
   { icon: DollarSign,      label: 'Payroll',           path: '/payroll',      roles: ['accounting'] },
-  { icon: Gift,            label: 'Leave Donation',    path: '/donation',     roles: ['all'] },
+  { icon: Gift,            label: 'Leave Donation',    path: '/donation',     roles: ['employee', 'team_lead', 'accounting', 'admin'] },
   { icon: Heart,           label: 'Wellness Days',     path: '/wellness',     roles: ['all'] },
   { icon: Settings,        label: 'Settings',          path: '/settings',     roles: ['all'] },
   { icon: Lock,            label: 'Admin Panel',       path: '/admin',        roles: ['admin'] },
