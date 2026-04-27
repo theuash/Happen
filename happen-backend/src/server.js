@@ -9,34 +9,36 @@ import jwt from 'jsonwebtoken'
 import { connectDB } from './db/mongoose.js'
 import Message from './db/models/Message.js'
 
-import authRoutes          from './routes/auth.js'
-import meRoutes            from './routes/me.js'
-import leaveRoutes         from './routes/leaveRequests.js'
-import teamRoutes          from './routes/teams.js'
-import companyRoutes       from './routes/calendar.js'
-import notificationRoutes  from './routes/notifications.js'
-import managerLeaveRoutes  from './routes/managerLeave.js'
-import queueRoutes         from './routes/queue.js'
+import authRoutes from './routes/auth.js'
+import meRoutes from './routes/me.js'
+import leaveRoutes from './routes/leaveRequests.js'
+import teamRoutes from './routes/teams.js'
+import companyRoutes from './routes/calendar.js'
+import notificationRoutes from './routes/notifications.js'
+import managerLeaveRoutes from './routes/managerLeave.js'
+import queueRoutes from './routes/queue.js'
 import currentLeavesRoutes from './routes/currentLeaves.js'
-import messagesRoutes      from './routes/messages.js'
-import meetingsRoutes      from './routes/meetings.js'
-import projectsRoutes      from './routes/projects.js'
-import myTasksRoutes      from './routes/myTasks.js'
-import okrRoutes          from './routes/okrs.js'
-import wikiRoutes         from './routes/wiki.js'
-import resourceRoutes     from './routes/resources.js'
-import kudosRoutes        from './routes/kudos.js'
-import timeEntryRoutes    from './routes/timeEntries.js'
+import messagesRoutes from './routes/messages.js'
+import meetingsRoutes from './routes/meetings.js'
+import projectsRoutes from './routes/projects.js'
+import myTasksRoutes from './routes/myTasks.js'
+import okrRoutes from './routes/okrs.js'
+import wikiRoutes from './routes/wiki.js'
+import resourceRoutes from './routes/resources.js'
+import kudosRoutes from './routes/kudos.js'
+import timeEntryRoutes from './routes/timeEntries.js'
+
+
 
 // Stub routes not yet migrated
 import express2 from 'express'
 const stub = (r) => { r.get('/', (_, res) => res.json([])); r.get('/:id', (_, res) => res.json({})); return r }
-const hrRoutes         = stub(express2.Router())
+const hrRoutes = stub(express2.Router())
 const accountingRoutes = stub(express2.Router())
-const adminRoutes      = stub(express2.Router())
-const donationRoutes   = stub(express2.Router())
-const wellnessRoutes   = stub(express2.Router())
-const employeeRoutes   = stub(express2.Router())
+const adminRoutes = stub(express2.Router())
+const donationRoutes = stub(express2.Router())
+const wellnessRoutes = stub(express2.Router())
+const employeeRoutes = stub(express2.Router())
 
 dotenv.config()
 
@@ -85,7 +87,7 @@ io.on('connection', (socket) => {
       const cid = convId(userId, to)
       const msg = await Message.create({
         conversation_id: cid,
-        sender_id:   userId,
+        sender_id: userId,
         receiver_id: to,
         text: text.trim(),
       })
@@ -114,30 +116,30 @@ app.use(express.json())
 async function start() {
   await connectDB()
 
-  app.use('/api/auth',           authRoutes)
-  app.use('/api/me',             meRoutes)
+  app.use('/api/auth', authRoutes)
+  app.use('/api/me', meRoutes)
   app.use('/api/leave-requests', leaveRoutes)
-  app.use('/api/teams',          teamRoutes)
-  app.use('/api/company',        companyRoutes)
-  app.use('/api/notifications',  notificationRoutes)
-  app.use('/api/manager-leave',  managerLeaveRoutes)
-  app.use('/api/queue',          queueRoutes)
+  app.use('/api/teams', teamRoutes)
+  app.use('/api/company', companyRoutes)
+  app.use('/api/notifications', notificationRoutes)
+  app.use('/api/manager-leave', managerLeaveRoutes)
+  app.use('/api/queue', queueRoutes)
   app.use('/api/current-leaves', currentLeavesRoutes)
-  app.use('/api/messages',       messagesRoutes)
-  app.use('/api/meetings',       meetingsRoutes)
-  app.use('/api/projects',       projectsRoutes)
-  app.use('/api/my-tasks',       myTasksRoutes)
-  app.use('/api/okrs',           okrRoutes)
-  app.use('/api/wiki',           wikiRoutes)
-  app.use('/api/resources',      resourceRoutes)
-  app.use('/api/kudos',          kudosRoutes)
-  app.use('/api/time-entries',   timeEntryRoutes)
-  app.use('/api/hr',             hrRoutes)
-  app.use('/api/accounting',     accountingRoutes)
-  app.use('/api/admin',          adminRoutes)
-  app.use('/api/donations',      donationRoutes)
-  app.use('/api/wellness',       wellnessRoutes)
-  app.use('/api/employees',      employeeRoutes)
+  app.use('/api/messages', messagesRoutes)
+  app.use('/api/meetings', meetingsRoutes)
+  app.use('/api/projects', projectsRoutes)
+  app.use('/api/my-tasks', myTasksRoutes)
+  app.use('/api/okrs', okrRoutes)
+  app.use('/api/wiki', wikiRoutes)
+  app.use('/api/resources', resourceRoutes)
+  app.use('/api/kudos', kudosRoutes)
+  app.use('/api/time-entries', timeEntryRoutes)
+  app.use('/api/hr', hrRoutes)
+  app.use('/api/accounting', accountingRoutes)
+  app.use('/api/admin', adminRoutes)
+  app.use('/api/donations', donationRoutes)
+  app.use('/api/wellness', wellnessRoutes)
+  app.use('/api/employees', employeeRoutes)
 
   app.use((err, req, res, next) => {
     console.error(err)

@@ -18,6 +18,7 @@ const NAV = [
   { icon: UserCheck,       label: 'Current Leaves',    path: '/current-leaves',roles: ['manager', 'hr', 'admin'] },
   // Work
   { icon: CheckSquare,     label: 'My Tasks',          path: '/tasks',        roles: ['employee', 'team_lead'] },
+  { icon: Users,           label: 'My Team',           path: '/team',         roles: ['employee', 'team_lead', 'accounting'] },
   { icon: FolderKanban,    label: 'Projects',          path: '/projects',     roles: ['team_lead', 'manager', 'hr', 'admin'] },
   { icon: Timer,           label: 'Timesheets',        path: '/timesheets',   roles: ['all'] },
   // People
@@ -28,7 +29,6 @@ const NAV = [
   { icon: CalendarRange,   label: 'Resources',         path: '/resources',    roles: ['all'] },
   { icon: BookOpen,        label: 'Wiki',              path: '/wiki',         roles: ['all'] },
   // Management
-  { icon: Users,           label: 'My Team',           path: '/team',         roles: ['team_lead'] },
   { icon: BarChart2,       label: 'Analytics',         path: '/analytics',    roles: ['manager', 'hr', 'accounting'] },
   { icon: Shield,          label: 'HR Portal',         path: '/hr',           roles: ['hr'] },
   { icon: DollarSign,      label: 'Payroll',           path: '/payroll',      roles: ['accounting'] },

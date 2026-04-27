@@ -74,6 +74,73 @@ router.get('/:teamId/calendar', verifyToken, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Server error' }) }
 })
 
+// GET /api/teams/:teamId/members — full member list with current leave status
+router.get('/:teamId/members', verifyToken, async (req, res) => {
+  try {
+    const today = todayStr()
+    const team = await Team.findById(req.params.teamId).lean()
+    if (!team) return res.status(404).json({ error: 'Team not found' })
+
+    const members = await User.find(
+      { team_id: req.params.teamId, is_active: true },
+      'first_name last_name email avatar role hire_date leave_balance_annual leave_balance_sick'
+    ).lean()
+
+    // For each member, get their current leave status
+    const enriched = await Promise.all(members.map(async (m) => {
+      const currentLeave = await LeaveRequest.findOne({
+        user_id: m._id,
+        status: { $in: ['approved', 'emergency'] },
+        $or: [
+          { start_date: { $lte: today }, end_date: { $gte: today } },
+          { type: 'emergency', start_date: null },
+        ],
+      }).lean()
+
+      const pendingLeave = await LeaveRequest.findOne({
+        user_id: m._id,
+        status: { $in: ['queued', 'pending'] },
+      }).sort({ createdAt: -1 }).lean()
+
+      return {
+        id: m._id,
+        first_name: m.first_name,
+        last_name: m.last_name,
+        email: m.email,
+        avatar: m.avatar,
+        role: m.role,
+        hire_date: m.hire_date,
+        leave_balance_annual: m.leave_balance_annual,
+        leave_balance_sick: m.leave_balance_sick,
+        is_team_lead: team.team_lead_id?.toString() === m._id.toString(),
+        current_leave: currentLeave ? {
+          type: currentLeave.type,
+          status: currentLeave.status,
+          start_date: currentLeave.start_date,
+          end_date: currentLeave.end_date,
+        } : null,
+        pending_leave: pendingLeave ? {
+          type: pendingLeave.type,
+          status: pendingLeave.status,
+          queue_position: pendingLeave.queue_position,
+        } : null,
+      }
+    }))
+
+    // Sort: team lead first, then alphabetically
+    enriched.sort((a, b) => {
+      if (a.is_team_lead) return -1
+      if (b.is_team_lead) return 1
+      return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+    })
+
+    res.json({
+      team: { id: team._id, name: team.name, workload_current: team.workload_current },
+      members: enriched,
+    })
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }) }
+})
+
 router.get('/:teamId/analytics', verifyToken, requireRole('team_lead','manager','hr','admin'), async (req, res) => {
   try {
     const members = await User.find({ team_id: req.params.teamId }, '_id').lean()

@@ -64,10 +64,6 @@ function EmployeeDashboard() {
   const gaugeColor = pct >= 80 ? '#EF4444' : pct >= 50 ? '#F59E0B' : '#22C55E';
   const conicBg = `conic-gradient(${gaugeColor} ${pct * 3.6}deg, #E5E7EB ${pct * 3.6}deg)`;
 
-  const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
-
   const activityIcons = { 'login': '🔑', 'leave_request.created': '📋', 'leave_request.approved': '✅', 'leave_request.denied': '❌', 'password.reset': '🔒' };
 
   return (
@@ -228,46 +224,50 @@ function EmployeeDashboard() {
           )}
         </div>
 
-        {/* RIGHT — Mini Calendar + Events */}
+        {/* RIGHT — Team Members */}
         <div className="card space-y-4">
-          <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
-            {today.toLocaleString('default',{month:'long',year:'numeric'})}
-          </h3>
-
-          {/* Mini calendar */}
-          <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
-            {['S','M','T','W','T','F','S'].map((d,i) => (
-              <div key={i} className="py-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>{d}</div>
-            ))}
-            {Array.from({length: firstDay}).map((_,i) => <div key={`e${i}`} />)}
-            {Array.from({length: daysInMonth}).map((_,i) => {
-              const d = i + 1;
-              const isToday = d === today.getDate();
-              return (
-                <div key={d} className="py-1 rounded font-medium" style={{
-                  background: isToday ? 'var(--orange)' : 'transparent',
-                  color: isToday ? 'white' : 'var(--text-primary)',
-                }}>
-                  {d}
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>My Team</h3>
+            <button onClick={() => navigate('/team')} className="text-xs font-semibold" style={{ color: 'var(--orange)' }}>
+              View All →
+            </button>
           </div>
 
-          {/* Today's team leaves */}
-          <div>
-            <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Team on Leave</p>
-            {teamLeaves.length > 0 ? teamLeaves.slice(0,4).map((l,i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--orange)' }}>
-                  {l.first_name?.charAt(0)}
+          {teamLeaves.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>On Leave Now</p>
+              {teamLeaves.slice(0, 4).map((l, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--orange-pale)' }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--orange)' }}>
+                    {l.first_name?.charAt(0)}{l.last_name?.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{l.first_name} {l.last_name}</p>
+                    <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>{l.type} leave</p>
+                  </div>
+                  {l.end_date && (
+                    <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                      until {new Date(l.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
                 </div>
-                <span className="text-sm flex-1">{l.first_name} {l.last_name}</span>
-                <span className="text-xs capitalize px-1.5 py-0.5 rounded" style={{ background: 'var(--orange-pale)', color: 'var(--orange)' }}>{l.type}</span>
-              </div>
-            )) : (
-              <p className="text-sm text-center py-3" style={{ color: 'var(--text-secondary)' }}>Everyone's in today</p>
-            )}
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#F0FDF4' }}>
+              <div className="w-2 h-2 rounded-full" style={{ background: '#22C55E' }} />
+              <p className="text-sm font-medium" style={{ color: '#22C55E' }}>Everyone's in today</p>
+            </div>
+          )}
+
+          {/* Quick team navigation */}
+          <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
+            <button onClick={() => navigate('/team')} className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:-translate-y-0.5" style={{ background: 'var(--orange)' }}>
+              View My Team
+            </button>
+            <button onClick={() => navigate('/calendar')} className="w-full py-2 rounded-lg text-sm font-semibold border-2 transition-all hover:-translate-y-0.5" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+              Team Calendar
+            </button>
           </div>
         </div>
       </div>
