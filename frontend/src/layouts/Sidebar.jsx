@@ -13,7 +13,7 @@ const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard',        path: '/dashboard',    roles: ['all'] },
   { icon: Calendar,        label: 'Calendar',          path: '/calendar',     roles: ['all'] },
   // Leave
-  { icon: ClipboardList,   label: 'My Leave',          path: '/leave',        roles: ['employee', 'team_lead', 'accounting', 'admin'] },
+  { icon: ClipboardList,   label: 'My Leave',          path: '/leave',        roles: ['employee', 'team_lead', 'accounting'] },
   { icon: Clock,           label: 'Leave Queue',       path: '/leave/queue',  roles: ['all'] },
   { icon: UserCheck,       label: 'Current Leaves',    path: '/current-leaves',roles: ['manager', 'hr', 'admin'] },
   // Work
