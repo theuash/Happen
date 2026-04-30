@@ -19,21 +19,21 @@ const NAV = [
   // Work
   { icon: CheckSquare,     label: 'My Tasks',          path: '/tasks',        roles: ['employee', 'team_lead'] },
   { icon: Users,           label: 'My Team',           path: '/team',         roles: ['employee', 'team_lead', 'accounting'] },
-  { icon: FolderKanban,    label: 'Projects',          path: '/projects',     roles: ['team_lead', 'manager', 'hr', 'admin'] },
-  { icon: Timer,           label: 'Timesheets',        path: '/timesheets',   roles: ['all'] },
+  { icon: FolderKanban,    label: 'Projects',          path: '/projects',     roles: ['team_lead', 'manager', 'hr'] },
+  { icon: Timer,           label: 'Timesheets',        path: '/timesheets',   roles: ['employee', 'team_lead', 'accounting', 'manager', 'hr'] },
   // People
-  { icon: Target,          label: 'Performance',       path: '/performance',  roles: ['all'] },
-  { icon: Award,           label: 'Kudos',             path: '/kudos',        roles: ['all'] },
+  { icon: Target,          label: 'Performance',       path: '/performance',  roles: ['employee', 'team_lead', 'accounting', 'manager', 'hr'] },
+  { icon: Award,           label: 'Kudos',             path: '/kudos',        roles: ['employee', 'team_lead', 'accounting', 'manager', 'hr'] },
   { icon: MessageSquare,   label: 'Messages',          path: '/messages',     roles: ['all'] },
   // Resources
-  { icon: CalendarRange,   label: 'Resources',         path: '/resources',    roles: ['all'] },
+  { icon: CalendarRange,   label: 'Resources',         path: '/resources',    roles: ['employee', 'team_lead', 'accounting', 'manager', 'hr'] },
   { icon: BookOpen,        label: 'Wiki',              path: '/wiki',         roles: ['all'] },
   // Management
   { icon: BarChart2,       label: 'Analytics',         path: '/analytics',    roles: ['manager', 'hr', 'accounting'] },
   { icon: Shield,          label: 'HR Portal',         path: '/hr',           roles: ['hr'] },
   { icon: DollarSign,      label: 'Payroll',           path: '/payroll',      roles: ['accounting'] },
-  { icon: Gift,            label: 'Leave Donation',    path: '/donation',     roles: ['employee', 'team_lead', 'accounting', 'admin'] },
-  { icon: Heart,           label: 'Wellness Days',     path: '/wellness',     roles: ['all'] },
+  { icon: Gift,            label: 'Leave Donation',    path: '/donation',     roles: ['employee', 'team_lead', 'accounting'] },
+  { icon: Heart,           label: 'Wellness Days',     path: '/wellness',     roles: ['employee', 'team_lead', 'accounting', 'manager', 'hr'] },
   { icon: Settings,        label: 'Settings',          path: '/settings',     roles: ['all'] },
   { icon: Lock,            label: 'Admin Panel',       path: '/admin',        roles: ['admin'] },
 ];
