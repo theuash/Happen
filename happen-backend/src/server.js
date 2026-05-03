@@ -19,7 +19,6 @@ import managerLeaveRoutes from './routes/managerLeave.js'
 import queueRoutes from './routes/queue.js'
 import currentLeavesRoutes from './routes/currentLeaves.js'
 import messagesRoutes from './routes/messages.js'
-import meetingsRoutes from './routes/meetings.js'
 import projectsRoutes from './routes/projects.js'
 import myTasksRoutes from './routes/myTasks.js'
 import okrRoutes from './routes/okrs.js'
@@ -126,7 +125,6 @@ async function start() {
   app.use('/api/queue',          queueRoutes)
   app.use('/api/current-leaves', currentLeavesRoutes)
   app.use('/api/messages',       messagesRoutes)
-  app.use('/api/meetings',       meetingsRoutes)
   app.use('/api/projects',       projectsRoutes)
   app.use('/api/my-tasks',       myTasksRoutes)
   app.use('/api/okrs',           okrRoutes)

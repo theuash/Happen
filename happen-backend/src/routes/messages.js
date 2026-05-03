@@ -8,16 +8,59 @@ const router = express.Router()
 // Canonical conversation ID — always smaller id first
 const convId = (a, b) => [a.toString(), b.toString()].sort().join('_')
 
-// GET /api/messages/contacts — all users except self (for contact list)
+// GET /api/messages/contacts — filtered by role-based messaging rules
 router.get('/contacts', verifyToken, async (req, res) => {
   try {
-    const users = await User.find(
-      { _id: { $ne: req.user.id }, is_active: true },
-      'first_name last_name email avatar role team_id'
-    ).populate('team_id', 'name').lean()
+    const me = await User.findById(req.user.id).lean()
+    if (!me) return res.status(404).json({ error: 'User not found' })
+
+    let allowedUsers = []
+
+    if (['accounting', 'hr', 'manager', 'admin'].includes(me.role)) {
+      // Can message everyone
+      allowedUsers = await User.find(
+        { _id: { $ne: me._id }, is_active: true },
+        'first_name last_name email avatar role team_id'
+      ).populate('team_id', 'name').lean()
+
+    } else if (me.role === 'employee') {
+      // Own team members + own team lead + accounting + HR + manager
+      const [teamMembers, privileged] = await Promise.all([
+        // Same team (includes team lead)
+        me.team_id
+          ? User.find({ team_id: me.team_id, _id: { $ne: me._id }, is_active: true }, 'first_name last_name email avatar role team_id').populate('team_id', 'name').lean()
+          : [],
+        // Accounting + HR + Manager (regardless of team)
+        User.find({ role: { $in: ['accounting', 'hr', 'manager'] }, is_active: true }, 'first_name last_name email avatar role team_id').populate('team_id', 'name').lean(),
+      ])
+      // Merge, deduplicate by _id
+      const seen = new Set()
+      for (const u of [...teamMembers, ...privileged]) {
+        const id = u._id.toString()
+        if (!seen.has(id)) { seen.add(id); allowedUsers.push(u) }
+      }
+
+    } else if (me.role === 'team_lead') {
+      // Own team members + other team leads + accounting + HR + manager
+      const [teamMembers, others] = await Promise.all([
+        me.team_id
+          ? User.find({ team_id: me.team_id, _id: { $ne: me._id }, is_active: true }, 'first_name last_name email avatar role team_id').populate('team_id', 'name').lean()
+          : [],
+        User.find({
+          role: { $in: ['team_lead', 'accounting', 'hr', 'manager'] },
+          _id: { $ne: me._id },
+          is_active: true,
+        }, 'first_name last_name email avatar role team_id').populate('team_id', 'name').lean(),
+      ])
+      const seen = new Set()
+      for (const u of [...teamMembers, ...others]) {
+        const id = u._id.toString()
+        if (!seen.has(id)) { seen.add(id); allowedUsers.push(u) }
+      }
+    }
 
     // For each contact, get last message + unread count
-    const contacts = await Promise.all(users.map(async (u) => {
+    const contacts = await Promise.all(allowedUsers.map(async (u) => {
       const cid = convId(req.user.id, u._id)
       const [last, unread] = await Promise.all([
         Message.findOne({ conversation_id: cid }).sort({ createdAt: -1 }).lean(),
@@ -32,7 +75,7 @@ router.get('/contacts', verifyToken, async (req, res) => {
       }
     }))
 
-    // Sort: contacts with messages first, then by name
+    // Sort: conversations with messages first, then alphabetically
     contacts.sort((a, b) => {
       if (a.last_message && !b.last_message) return -1
       if (!a.last_message && b.last_message) return 1
