@@ -76,7 +76,7 @@ function HomePage() {
             <div>
               <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight" style={{ color: 'var(--text-primary)' }}>
                 The Human-Centered
-                <span className="block" style={{ color: 'var(--orange)' }}>Workplace OS</span>
+                <span className="block" style={{ color: 'var(--orange)' }}>Workplace Platform</span>
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
                 Happen transforms how organizations manage people, time, and wellbeing. 
@@ -234,7 +234,7 @@ function HomePage() {
             </div>
             <span className="text-2xl font-bold">Happen</span>
           </div>
-          <p className="text-gray-400 mb-4">The Human-Centered Workplace OS</p>
+          <p className="text-gray-400 mb-4">The Human-Centered Workplace Platform</p>
           <p className="text-gray-500 text-sm">© 2026 Happen. A product of emergent.sh</p>
         </div>
       </footer>

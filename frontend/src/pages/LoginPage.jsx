@@ -75,6 +75,18 @@ function LoginPage() {
       {/* Right Panel - Form */}
       <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-16 bg-white">
         <div className="w-full max-w-md mx-auto">
+          {/* Back to Home */}
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 text-sm font-medium mb-8 transition-colors hover:-translate-x-0.5 transition-transform"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Back to Home
+          </a>
+
           <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
             Sign In
           </h2>
