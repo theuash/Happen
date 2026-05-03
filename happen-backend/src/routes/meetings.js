@@ -51,7 +51,7 @@ router.post('/', verifyToken, async (req, res) => {
         title: '📅 New Meeting Scheduled',
         message: `${organizer.first_name} ${organizer.last_name} scheduled "${title}" on ${new Date(start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}.`,
         type: 'info',
-        link: '/messages?tab=meetings',
+        link: '/messages',
       })))
     }
 
