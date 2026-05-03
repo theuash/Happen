@@ -1,45 +1,78 @@
 import express from 'express'
-import db from '../db/database.js'
+import User from '../db/models/User.js'
+import LeaveRequest from '../db/models/LeaveRequest.js'
+import Notification from '../db/models/Notification.js'
+import Team from '../db/models/Team.js'
 import { verifyToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// POST /api/wellness/request
-router.post('/request', verifyToken, (req, res) => {
-  // Check wellness days used
-  const user = db.prepare('SELECT wellness_days_used, team_id FROM users WHERE id = ?').get([req.user.id])
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' })
-  }
-  if (user.wellness_days_used >= 2) {
-    return res.status(400).json({ error: 'Wellness days limit reached' })
-  }
+const WELLNESS_TOTAL = 2
 
-  // Use today as the leave date (single day)
-  const today = new Date().toISOString().split('T')[0]
-  const start_date = today
-  const end_date = today
-  const days_count = 1
+// GET /api/wellness/balance
+router.get('/balance', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).lean()
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const used = user.wellness_days_used || 0
+    res.json({ used, total: WELLNESS_TOTAL, remaining: WELLNESS_TOTAL - used })
+  } catch (e) { res.status(500).json({ error: 'Server error' }) }
+})
 
-  // Insert leave request as approved
-  const info = db.prepare(`
-    INSERT INTO leave_requests (user_id, start_date, end_date, days_count, type, status)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run([req.user.id, start_date, end_date, days_count, 'wellness', 'approved'])
+// POST /api/wellness/request  — take a full wellness day (auto-approved)
+router.post('/request', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).lean()
+    if (!user) return res.status(404).json({ error: 'User not found' })
 
-  // Increment wellness_days_used
-  db.prepare('UPDATE users SET wellness_days_used = wellness_days_used + 1 WHERE id = ?').run([req.user.id])
+    const used = user.wellness_days_used || 0
+    if (used >= WELLNESS_TOTAL) {
+      return res.status(400).json({
+        error: `You have used all ${WELLNESS_TOTAL} wellness days for this year.`,
+      })
+    }
 
-  // Notify manager/team lead
-  const team = db.prepare('SELECT team_lead_id FROM teams WHERE id = ?').get([user.team_id])
-  if (team && team.team_lead_id) {
-    const title = 'Wellness Leave Request'
-    const message = `Employee ${req.user.name || 'Anonymous'} requested a wellness day (auto-approved).`
-    db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)').run([team.team_lead_id, title, message, 'info'])
-  }
+    const today = new Date().toISOString().split('T')[0]
 
-  const request = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get([info.lastInsertRowid])
-  res.json({ request, status: 'approved' })
+    const lr = await LeaveRequest.create({
+      user_id: user._id,
+      type: 'wellness',
+      start_date: today,
+      end_date: today,
+      days_count: 1,
+      status: 'approved',
+      decision_date: new Date(),
+    })
+
+    // Increment counter
+    await User.findByIdAndUpdate(user._id, { $inc: { wellness_days_used: 1 } })
+
+    // Notify team lead + manager
+    const [team, manager] = await Promise.all([
+      user.team_id ? Team.findById(user.team_id).lean() : null,
+      User.findOne({ role: 'manager' }, '_id').lean(),
+    ])
+    const notifyIds = [team?.team_lead_id, manager?._id].filter(Boolean)
+    if (notifyIds.length) {
+      await Notification.insertMany(notifyIds.map(id => ({
+        user_id: id,
+        title: 'Wellness Day Taken',
+        message: `${user.first_name} ${user.last_name} has taken a wellness day today.`,
+        type: 'info',
+        link: '/current-leaves',
+      })))
+    }
+
+    const newUsed = used + 1
+    res.json({
+      request: { ...lr.toObject(), id: lr._id },
+      status: 'approved',
+      message: `Wellness day approved! You have ${WELLNESS_TOTAL - newUsed} wellness day(s) remaining.`,
+      used: newUsed,
+      remaining: WELLNESS_TOTAL - newUsed,
+      total: WELLNESS_TOTAL,
+    })
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }) }
 })
 
 export default router
