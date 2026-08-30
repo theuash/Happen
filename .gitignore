@@ -87,5 +87,6 @@ android-sdk/-e
 # Environment files
 *.env
 *.env.*
-    
+
 tracker/Data/*
+./tracker/Data/
