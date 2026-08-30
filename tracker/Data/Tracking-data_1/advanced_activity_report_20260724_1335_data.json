@@ -1,0 +1,94 @@
+{
+  "activities": [
+    {
+      "timestamp": "2026-07-24T13:35:32.870453",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(3034, 117)",
+      "cpu_usage": 15.8,
+      "memory_usage": 38.6,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "window_change"
+    },
+    {
+      "timestamp": "2026-07-24T13:35:37.873508",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(3034, 117)",
+      "cpu_usage": 11.4,
+      "memory_usage": 38.7,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "periodic"
+    },
+    {
+      "timestamp": "2026-07-24T13:35:42.876238",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(3034, 117)",
+      "cpu_usage": 11.4,
+      "memory_usage": 39.8,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "periodic"
+    },
+    {
+      "timestamp": "2026-07-24T13:35:47.879856",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(3034, 117)",
+      "cpu_usage": 17.4,
+      "memory_usage": 39.5,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "periodic"
+    }
+  ],
+  "active_periods": [
+    {
+      "start": "2026-07-24T13:35:32.865865",
+      "end": "2026-07-24T13:35:49.852915",
+      "duration": 16.987015
+    }
+  ],
+  "idle_periods": [],
+  "summary": {
+    "total_activities": 4,
+    "total_active_time": 16.987015,
+    "total_idle_time": 0,
+    "productivity_score": 52.0
+  }
+}

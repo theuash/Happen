@@ -1,0 +1,81 @@
+{
+  "activities": [
+    {
+      "timestamp": "2026-07-24T13:45:32.019516",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(1801, 1803)",
+      "cpu_usage": 10.7,
+      "memory_usage": 44.3,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "window_change",
+      "browser_tabs": [],
+      "browser_urls": []
+    },
+    {
+      "timestamp": "2026-07-24T13:45:37.024324",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(1801, 1803)",
+      "cpu_usage": 4.6,
+      "memory_usage": 45.4,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "periodic",
+      "browser_tabs": [],
+      "browser_urls": []
+    },
+    {
+      "timestamp": "2026-07-24T13:45:42.027691",
+      "window_title": "Active Window",
+      "process": "Unknown",
+      "mouse_position": "(1801, 1803)",
+      "cpu_usage": 4.9,
+      "memory_usage": 45.3,
+      "mouse_moves": 0,
+      "mouse_clicks": 0,
+      "mouse_distance": 0,
+      "keyboard_keys": 0,
+      "typing_speed": 0,
+      "activity_status": "Active Work",
+      "focus_level": 30,
+      "is_user_active": true,
+      "idle_duration": 0,
+      "screenshot": null,
+      "type": "periodic",
+      "browser_tabs": [],
+      "browser_urls": []
+    }
+  ],
+  "active_periods": [
+    {
+      "start": "2026-07-24T13:45:32.009725",
+      "end": "2026-07-24T13:45:46.459866",
+      "duration": 14.450114
+    }
+  ],
+  "idle_periods": [],
+  "summary": {
+    "total_activities": 3,
+    "total_active_time": 14.450114,
+    "total_idle_time": 0,
+    "productivity_score": 52.0
+  }
+}
